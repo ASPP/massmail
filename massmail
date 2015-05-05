@@ -1,0 +1,278 @@
+#!/usr/bin/env python
+# Script to send mass email
+#
+# Copyright (C) 2003-2015 Tiziano Zito <opossumnano@gmail.com>
+#
+# This script is free software and comes without any warranty, to
+# the extent permitted by applicable law. You can redistribute it
+# and/or modify it under the terms of the Do What The Fuck You Want
+# To Public License, Version 2, as published by Sam Hocevar.
+# http://www.wtfpl.net
+# 
+# Full license text:
+# 
+# DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+# Version 2, December 2004.
+#
+# Everyone is permitted to copy and distribute verbatim or modified
+# copies of this license document, and changing it is allowed as long
+# as the name is changed.
+#
+# DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+# TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+#
+# 0. You just DO WHAT THE FUCK YOU WANT TO.
+
+import smtplib, getopt, sys, os, email, getpass
+import email.header
+import email.mime.text
+
+
+PROGNAME = os.path.basename(sys.argv[0])
+USAGE = """Send mass mail
+Usage:
+  %s [...] PARAMETER_FILE < BODY
+
+Options:
+  -F FROM           set the From: header for all messages.
+                    Must be ASCII. This argument is required
+
+  -S SUBJECT        set the Subject: header for all messages
+
+  -B BCC            set the Bcc: header for all messages.
+                    Must be ASCII
+
+  -s SEPARATOR      set field separator in parameter file,
+                    default: ";"
+
+  -e ENCODING       set PARAMETER_FILE *and* BODY character set
+                    encoding, default: "UTF-8". Note that if you fuck
+                    up this one, your email will be full of rubbish:
+                    You have been warned!
+
+  -f                fake run: don't really send emails, just print to
+                    standard output what would be done. Don't be scared
+                    if you can not read the body: it is base64 encoded
+                    UTF8 text
+
+  -z SERVER         the SMTP server to use. This argument is required
+
+  -P PORT           the SMTP port to use.
+
+  -u                SMTP user name. If not set, use anonymous SMTP 
+                    connection
+
+  -p                SMTP password. If not set you will be prompted for one
+
+  -h                show this usage message
+
+Notes:
+  The message body is read from standard input or
+  typed in interactively (exit with ^D) and keywords are subsituted with values
+  read from a parameter file. The first line of the parameter file defines
+  the keywords. The keyword $EMAIL$ must always be present and contains a comma
+  separated list of email addresses.
+  Keep in mind shell escaping when setting headers with white spaces or special
+  characters.
+  Character set encodings are those supported by python.
+
+Examples:
+
+* Example of a parameter file:
+
+$NAME$; $SURNAME$; $EMAIL$
+John; Smith; j@guys.com
+Anne; Joyce; a@girls.com
+
+* Example of body:
+
+Dear $NAME$ $SURNAME$,
+
+I think you are a great guy/girl!
+
+Cheers,
+
+My self.
+
+* Example usage:
+
+%s  -F "Great Guy <gg@guys.com>" -S "You are a great guy" -B "Not so great Guy <ngg@guys.com>" parameter-file < body
+ 
+"""%(PROGNAME, PROGNAME)
+
+def error(s):
+    sys.stderr.write(PROGNAME+': ')
+    sys.stderr.write(s+'\n')
+    sys.stderr.flush()
+    sys.exit(-1)
+
+# parse options
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "hfs:F:S:B:R:e:u:p:P:z:")
+except getopt.GetoptError, err:
+    error(str(err)+USAGE)
+
+# set default options
+SEP = u';'
+FAKE = False
+FROM = ''
+SUBJECT = ''
+BCC = ''
+ENCODING='UTF-8'
+SMTPUSER=None
+SMTPPASSWORD=None
+SERVER=None
+PORT=0
+IN_REPLY_TO=''
+
+for option, value in opts:
+    if option == "-e":
+        ENCODING = value
+    if option == "-s":
+        SEP = value
+    elif option == "-F":
+        FROM = value
+    elif option == "-S":
+        SUBJECT = value
+    elif option == "-B":
+        BCC = value
+    elif option == "-R":
+        IN_REPLY_TO = value
+    elif option == "-h":
+        error(USAGE)
+    elif option == "-f":
+        FAKE=True
+    elif option == "-u":
+        SMTPUSER= value
+    elif option == "-p":
+        SMTPPASSWORD = value
+    elif option == "-P":
+        PORT = int(value)
+    elif option == "-z":
+        SERVER = value
+
+if len(args) == 0:
+    error('You must specify a parameter file')
+
+if len(FROM) == 0:
+    error('You must set a from address with option -F')
+
+if SERVER is None:
+    error('You must set a SMTP server with option -z')
+
+if SEP == ",":
+    error('Separator can not be a comma')
+
+# get password if needed
+if SMTPUSER is not None and SMTPPASSWORD is None:
+    SMTPPASSWORD = getpass.getpass('Enter password for %s: '%SMTPUSER)
+
+PFILE = args[0]
+
+pars_fh = open(PFILE, 'rbU')
+pars = pars_fh.read()
+pars_fh.close()
+
+try:
+    pars = unicode(pars, encoding=ENCODING)
+except UnicodeDecodeError, e:
+    error('Error decoding "'+PFILE+'": '+str(e))
+
+try:
+    SUBJECT = unicode(SUBJECT, encoding=ENCODING)
+except UnicodeDecodeError, e:
+    error('Error decoding SUBJECT: '+str(e))
+
+try:
+    FROM = unicode(FROM, encoding=ENCODING)
+except UnicodeDecodeError, e:
+    error('Error decoding FROM: '+str(e))
+
+if IN_REPLY_TO and not IN_REPLY_TO.startswith('<'):
+    IN_REPLY_TO = '<{}>'.format(IN_REPLY_TO)
+
+# split lines
+pars = pars.splitlines()
+
+# get keywords from first line
+keywords_list = [key.strip() for key in pars[0].split(SEP)]
+
+# fail immediately if no EMAIL keyword is found
+if '$EMAIL$' not in keywords_list:
+    error('No $EMAIL$ keyword found in %s'%PFILE)
+
+# check that all keywords start and finish with a '$' character
+for key in keywords_list:
+    if not key.startswith('$') or not key.endswith('$'):
+        error(('Keyword "%s" malformed: should be $KEYWORD$'%key).encode(ENCODING))
+
+# gather all values
+email_count = 0
+keywords = dict([(key, []) for key in keywords_list])
+for count, line in enumerate(pars[1:]):
+    # ignore empty lines
+    if len(line) == 0:
+        continue
+    values = [key.strip() for key in line.split(SEP)]
+    if len(values) != len(keywords_list):
+        error(('Line %d in "%s" malformed: %d values found instead of'
+               ' %d: %s'%(count+1,PFILE,len(values),len(keywords_list),line)).encode(ENCODING))
+    for i, key in enumerate(keywords_list):
+        keywords[key].append(values[i])
+    email_count += 1
+
+# read in body from standard input
+body = sys.stdin.read()
+try:
+    body = unicode(body, encoding=ENCODING)
+except UnicodeDecodeError, e:
+    error('Error decoding email body: '+str(e))
+
+# find keywords and substitute with values
+# we need to create email_count bodies
+msgs = {}
+
+for i in range(email_count):
+    lbody = body
+    for key in keywords:
+        lbody = lbody.replace(key, keywords[key][i])
+    # encode body
+    lbody = email.mime.text.MIMEText(lbody.encode(ENCODING), 'plain', ENCODING)
+    msgs[keywords['$EMAIL$'][i]] = lbody
+
+# msgs is now a dictionary with {emailaddr:body}
+# we need to add the headers
+
+for emailaddr in msgs:
+    msg = msgs[emailaddr]
+    msg['To'] = str(emailaddr)
+    msg['From'] = email.header.Header(FROM)
+    if SUBJECT:
+        msg['Subject'] = email.header.Header(SUBJECT.encode(ENCODING), ENCODING)
+    if IN_REPLY_TO:
+        msg['In-Reply-To'] = email.header.Header(IN_REPLY_TO)
+    msgs[emailaddr] = msg
+
+server = smtplib.SMTP(SERVER, port=PORT)
+
+if SMTPUSER is not None:
+    server.starttls()
+    server.login(SMTPUSER, SMTPPASSWORD)
+
+for emailaddr in msgs:
+    print 'Sending email to:', emailaddr
+    emails = [e.strip() for e in emailaddr.split(',')]
+    if len(BCC) > 0:
+        emails.append(BCC)
+    if FAKE:
+        print msgs[emailaddr].as_string()
+    else:
+        try:
+            out = server.sendmail(FROM, emails, msgs[emailaddr].as_string())
+        except Exception, err:
+            error(str(err))
+
+        if len(out) != 0:
+            error(str(out))
+
+server.close()
