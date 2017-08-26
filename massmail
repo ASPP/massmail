@@ -293,6 +293,9 @@ def send_messages(options, msgs):
 
     server.close()
 
+def test_dummy():
+    pass
+
 if __name__ == '__main__':
     options = parse_command_line_options(sys.argv[1:])
     keywords, email_count = parse_parameter_file(options)
