@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # Script to send mass email
 #
-# Copyright (C) 2003-2015 Tiziano Zito <opossumnano@gmail.com>
+# Copyright (C) 2003-2017 Tiziano Zito <opossumnano@gmail.com>, Jakob Jordan <jakobjordan@posteo.de>
 #
 # This script is free software and comes without any warranty, to
 # the extent permitted by applicable law. You can redistribute it
@@ -106,173 +106,196 @@ def error(s):
     sys.stderr.flush()
     sys.exit(-1)
 
-# parse options
-try:
-    opts, args = getopt.getopt(sys.argv[1:], "hfs:F:S:B:R:e:u:p:P:z:")
-except getopt.GetoptError, err:
-    error(str(err)+USAGE)
+def parse_command_line_options(arguments):
+    # parse options
+    try:
+        opts, args = getopt.getopt(arguments, "hfs:F:S:B:R:e:u:p:P:z:")
+    except getopt.GetoptError, err:
+        error(str(err)+USAGE)
 
-# set default options
-SEP = u';'
-FAKE = False
-FROM = ''
-SUBJECT = ''
-BCC = ''
-ENCODING='UTF-8'
-SMTPUSER=None
-SMTPPASSWORD=None
-SERVER=None
-PORT=0
-IN_REPLY_TO=''
+    # set default options
+    options = {
+        'sep': u';',
+        'fake': False,
+        'from': '',
+        'subject': '',
+        'bcc': '',
+        'encoding': 'utf-8',
+        'smtpuser': None,
+        'smtppassword': None,
+        'server': None,
+        'port': 0,
+        'in_reply_to': '',
+    }
 
-for option, value in opts:
-    if option == "-e":
-        ENCODING = value
-    if option == "-s":
-        SEP = value
-    elif option == "-F":
-        FROM = value
-    elif option == "-S":
-        SUBJECT = value
-    elif option == "-B":
-        BCC = value
-    elif option == "-R":
-        IN_REPLY_TO = value
-    elif option == "-h":
-        error(USAGE)
-    elif option == "-f":
-        FAKE=True
-    elif option == "-u":
-        SMTPUSER= value
-    elif option == "-p":
-        SMTPPASSWORD = value
-    elif option == "-P":
-        PORT = int(value)
-    elif option == "-z":
-        SERVER = value
+    for option, value in opts:
+        if option == "-e":
+            options['encoding'] = value
+        if option == "-s":
+            options['sep'] = value
+        elif option == "-F":
+            options['from'] = value
+        elif option == "-S":
+            options['subject'] = value
+        elif option == "-B":
+            options['bcc'] = value
+        elif option == "-R":
+            options['in_reply_to'] = value
+        elif option == "-h":
+            error(USAGE)
+        elif option == "-f":
+            options['fake'] = True
+        elif option == "-u":
+            options['smtpuser'] = value
+        elif option == "-p":
+            options['smtppassword'] = value
+        elif option == "-P":
+            options['port'] = int(value)
+        elif option == "-z":
+            options['server'] = value
 
-if len(args) == 0:
-    error('You must specify a parameter file')
+    if len(args) == 0:
+        error('You must specify a parameter file')
 
-if len(FROM) == 0:
-    error('You must set a from address with option -F')
+    if len(options['from']) == 0:
+        error('You must set a from address with option -F')
 
-if SERVER is None:
-    error('You must set a SMTP server with option -z')
+    if options['server'] is None:
+        error('You must set a SMTP server with option -z')
 
-if SEP == ",":
-    error('Separator can not be a comma')
+    if options['sep'] == ",":
+        error('Separator can not be a comma')
 
-# get password if needed
-if SMTPUSER is not None and SMTPPASSWORD is None:
-    SMTPPASSWORD = getpass.getpass('Enter password for %s: '%SMTPUSER)
+    # get password if needed
+    if options['smtpuser'] is not None and options['smtppassword'] is None:
+        options['smtppassword'] = getpass.getpass('Enter password for %s: '%options['smtpuser'])
 
-PFILE = args[0]
+    # set filenames of parameter and mail body
+    options['fn_parameters'] = args[0]
 
-pars_fh = open(PFILE, 'rbU')
-pars = pars_fh.read()
-pars_fh.close()
+    return options
 
-try:
-    pars = unicode(pars, encoding=ENCODING)
-except UnicodeDecodeError, e:
-    error('Error decoding "'+PFILE+'": '+str(e))
+def parse_parameter_file(options):
+    pars_fh = open(options['fn_parameters'], 'rbU')
+    pars = pars_fh.read()
+    pars_fh.close()
 
-try:
-    SUBJECT = unicode(SUBJECT, encoding=ENCODING)
-except UnicodeDecodeError, e:
-    error('Error decoding SUBJECT: '+str(e))
+    try:
+        pars = unicode(pars, encoding=options['encoding'])
+    except UnicodeDecodeError, e:
+        error('Error decoding "'+options['fn_parameters']+'": '+str(e))
 
-try:
-    FROM = unicode(FROM, encoding=ENCODING)
-except UnicodeDecodeError, e:
-    error('Error decoding FROM: '+str(e))
+    try:
+        options['subject'] = unicode(options['subject'], encoding=options['encoding'])
+    except UnicodeDecodeError, e:
+        error('Error decoding SUBJECT: '+str(e))
 
-if IN_REPLY_TO and not IN_REPLY_TO.startswith('<'):
-    IN_REPLY_TO = '<{}>'.format(IN_REPLY_TO)
+    try:
+        options['from'] = unicode(options['from'], encoding=options['encoding'])
+    except UnicodeDecodeError, e:
+        error('Error decoding FROM: '+str(e))
 
-# split lines
-pars = pars.splitlines()
+    if options['in_reply_to'] and not options['in_reply_to'].startswith('<'):
+        options['in_reply_to'] = '<{}>'.format(options['in_reply_to'])
 
-# get keywords from first line
-keywords_list = [key.strip() for key in pars[0].split(SEP)]
+    # split lines
+    pars = pars.splitlines()
 
-# fail immediately if no EMAIL keyword is found
-if '$EMAIL$' not in keywords_list:
-    error('No $EMAIL$ keyword found in %s'%PFILE)
+    # get keywords from first line
+    keywords_list = [key.strip() for key in pars[0].split(options['sep'])]
 
-# check that all keywords start and finish with a '$' character
-for key in keywords_list:
-    if not key.startswith('$') or not key.endswith('$'):
-        error(('Keyword "%s" malformed: should be $KEYWORD$'%key).encode(ENCODING))
+    # fail immediately if no EMAIL keyword is found
+    if '$EMAIL$' not in keywords_list:
+        error('No $EMAIL$ keyword found in %s'%options['fn_parameters'])
 
-# gather all values
-email_count = 0
-keywords = dict([(key, []) for key in keywords_list])
-for count, line in enumerate(pars[1:]):
-    # ignore empty lines
-    if len(line) == 0:
-        continue
-    values = [key.strip() for key in line.split(SEP)]
-    if len(values) != len(keywords_list):
-        error(('Line %d in "%s" malformed: %d values found instead of'
-               ' %d: %s'%(count+1,PFILE,len(values),len(keywords_list),line)).encode(ENCODING))
-    for i, key in enumerate(keywords_list):
-        keywords[key].append(values[i])
-    email_count += 1
+    # check that all keywords start and finish with a '$' character
+    for key in keywords_list:
+        if not key.startswith('$') or not key.endswith('$'):
+            error(('Keyword "%s" malformed: should be $KEYWORD$'%key).encode(options['encoding']))
 
-# read in body from standard input
-body = sys.stdin.read()
-try:
-    body = unicode(body, encoding=ENCODING)
-except UnicodeDecodeError, e:
-    error('Error decoding email body: '+str(e))
+    # gather all values
+    email_count = 0
+    keywords = dict([(key, []) for key in keywords_list])
+    for count, line in enumerate(pars[1:]):
+        # ignore empty lines
+        if len(line) == 0:
+            continue
+        values = [key.strip() for key in line.split(options['sep'])]
+        if len(values) != len(keywords_list):
+            error(('Line %d in "%s" malformed: %d values found instead of'
+                   ' %d: %s'%(count+1,options['fn_parameters'],len(values),len(keywords_list),line)).encode(options['encoding']))
+        for i, key in enumerate(keywords_list):
+            keywords[key].append(values[i])
+        email_count += 1
 
-# find keywords and substitute with values
-# we need to create email_count bodies
-msgs = {}
+    return keywords, email_count
 
-for i in range(email_count):
-    lbody = body
-    for key in keywords:
-        lbody = lbody.replace(key, keywords[key][i])
-    # encode body
-    lbody = email.mime.text.MIMEText(lbody.encode(ENCODING), 'plain', ENCODING)
-    msgs[keywords['$EMAIL$'][i]] = lbody
+def create_email_bodies(options, keywords, email_count):
+    # read in body from standard input
+    body = sys.stdin.read()
+    try:
+        body = unicode(body, encoding=options['encoding'])
+    except UnicodeDecodeError, e:
+        error('Error decoding email body: '+str(e))
 
-# msgs is now a dictionary with {emailaddr:body}
-# we need to add the headers
+    # find keywords and substitute with values
+    # we need to create email_count bodies
+    msgs = {}
 
-for emailaddr in msgs:
-    msg = msgs[emailaddr]
-    msg['To'] = str(emailaddr)
-    msg['From'] = email.header.Header(FROM)
-    if SUBJECT:
-        msg['Subject'] = email.header.Header(SUBJECT.encode(ENCODING), ENCODING)
-    if IN_REPLY_TO:
-        msg['In-Reply-To'] = email.header.Header(IN_REPLY_TO)
-    msgs[emailaddr] = msg
+    for i in range(email_count):
+        lbody = body
+        for key in keywords:
+            lbody = lbody.replace(key, keywords[key][i])
+        # encode body
+        lbody = email.mime.text.MIMEText(lbody.encode(options['encoding']), 'plain', options['encoding'])
+        msgs[keywords['$EMAIL$'][i]] = lbody
 
-server = smtplib.SMTP(SERVER, port=PORT)
+    return msgs
 
-if SMTPUSER is not None:
-    server.starttls()
-    server.login(SMTPUSER, SMTPPASSWORD)
+def add_email_headers(options, msgs):
+    # msgs is now a dictionary with {emailaddr:body}
+    # we need to add the headers
 
-for emailaddr in msgs:
-    print 'Sending email to:', emailaddr
-    emails = [e.strip() for e in emailaddr.split(',')]
-    if len(BCC) > 0:
-        emails.append(BCC)
-    if FAKE:
-        print msgs[emailaddr].as_string()
-    else:
-        try:
-            out = server.sendmail(FROM, emails, msgs[emailaddr].as_string())
-        except Exception, err:
-            error(str(err))
+    for emailaddr in msgs:
+        msg = msgs[emailaddr]
+        msg['To'] = str(emailaddr)
+        msg['From'] = email.header.Header(options['from'])
+        if options['subject']:
+            msg['Subject'] = email.header.Header(options['subject'].encode(options['encoding']), options['encoding'])
+        if options['in_reply_to']:
+            msg['In-Reply-To'] = email.header.Header(options['in_reply_to'])
+        msgs[emailaddr] = msg
 
-        if len(out) != 0:
-            error(str(out))
+    return None
 
-server.close()
+def send_messages(options, msgs):
+    server = smtplib.SMTP(options['server'], port=options['port'])
+
+    if options['smtpuser'] is not None:
+        server.starttls()
+        server.login(options['smtpuser'], options['smtppassword'])
+
+    for emailaddr in msgs:
+        print 'Sending email to:', emailaddr
+        emails = [e.strip() for e in emailaddr.split(',')]
+        if len(options['bcc']) > 0:
+            emails.append(options['bcc'])
+        if options['fake']:
+            print msgs[emailaddr].as_string()
+        else:
+            try:
+                out = server.sendmail(options['from'], emails, msgs[emailaddr].as_string())
+            except Exception, err:
+                error(str(err))
+
+            if len(out) != 0:
+                error(str(out))
+
+    server.close()
+
+if __name__ == '__main__':
+    options = parse_command_line_options(sys.argv[1:])
+    keywords, email_count = parse_parameter_file(options)
+    msgs = create_email_bodies(options, keywords, email_count)
+    add_email_headers(options, msgs)
+    send_messages(options, msgs)
