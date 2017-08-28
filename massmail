@@ -231,9 +231,7 @@ def parse_parameter_file(options):
 
     return keywords, email_count
 
-def create_email_bodies(options, keywords, email_count):
-    # read in body from standard input
-    body = sys.stdin.read()
+def create_email_bodies(options, keywords, email_count, body):
     try:
         body = unicode(body, encoding=options['encoding'])
     except UnicodeDecodeError, e:
@@ -311,9 +309,38 @@ def test_parse_parameter_file():
         keywords, email_count = parse_parameter_file(options)
     assert keywords == expected_keywords
 
+def test_local_sending():
+    parameter_string = '$EMAIL$;$NAME$;$VALUE$\ntestrecv@test.org;TestName;531'
+    email_body = 'Dear $NAME$,\nthis is a test: $VALUE$\nBest regards'
+    email_to = 'testrecv@test.org'
+    email_from = 'testfrom@test.org'
+    email_subject = 'Test Subject'
+    email_encoding = 'utf-8'
+
+    expected_email = email.mime.text.MIMEText('Dear TestName,\nthis is a test: 531\nBest regards'.encode(email_encoding), 'plain', email_encoding)
+    expected_email['To'] = email_to
+    expected_email['From'] = email_from
+    expected_email['Subject'] = email.header.Header(email_subject.encode(email_encoding), email_encoding)
+
+    with tempfile.NamedTemporaryFile() as f:
+        f.write(parameter_string)
+        f.flush()
+        cmd_options = [
+            '-F', email_from,
+            '-S', email_subject,
+            '-z', 'localhost',
+            '-e', email_encoding,
+            f.name
+        ]
+        options = parse_command_line_options(cmd_options)
+        keywords, email_count = parse_parameter_file(options)
+        msgs = create_email_bodies(options, keywords, email_count, email_body)
+        add_email_headers(options, msgs)
+        assert msgs['testrecv@test.org'].as_string() == expected_email.as_string()
+
 if __name__ == '__main__':
     options = parse_command_line_options(sys.argv[1:])
     keywords, email_count = parse_parameter_file(options)
-    msgs = create_email_bodies(options, keywords, email_count)
+    msgs = create_email_bodies(options, keywords, email_count, sys.stdin.read())
     add_email_headers(options, msgs)
     send_messages(options, msgs)
