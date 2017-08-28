@@ -26,13 +26,8 @@
 import smtplib, getopt, sys, os, email, getpass
 import email.header
 import email.mime.text
-import io
-import contextlib
 import tempfile
-import time
-import subprocess
-import base64
-
+import re
 
 PROGNAME = os.path.basename(sys.argv[0])
 USAGE = """Send mass mail
@@ -112,6 +107,14 @@ def error(s):
     sys.stderr.flush()
     sys.exit(-1)
 
+def address_check(address_to_verify):
+    # Based on:
+    # https://www.scottbrady91.com/Email-Verification/Python-Email-Verification-Script)
+    match = re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$',
+                     address_to_verify)
+    if match == None:
+        raise ValueError('Bad Syntax')
+
 def parse_command_line_options(arguments):
     # parse options
     try:
@@ -166,7 +169,7 @@ def parse_command_line_options(arguments):
     if len(options['from']) == 0:
         error('You must set a from address with option -F')
 
-    if options['server'] is None and not options['fake']:
+    if options['server'] is None:
         error('You must set a SMTP server with option -z')
 
     if options['sep'] == ",":
@@ -200,6 +203,11 @@ def parse_parameter_file(options):
         options['from'] = unicode(options['from'], encoding=options['encoding'])
     except UnicodeDecodeError, e:
         error('Error decoding FROM: '+str(e))
+
+    try:
+        address_check(options['from'])
+    except ValueError, e:
+        error('Invalid from email. chhhheeeeccck.')
 
     if options['in_reply_to'] and not options['in_reply_to'].startswith('<'):
         options['in_reply_to'] = '<{}>'.format(options['in_reply_to'])
@@ -252,7 +260,12 @@ def create_email_bodies(options, keywords, email_count, body):
             lbody = lbody.replace(key, keywords[key][i])
         # encode body
         lbody = email.mime.text.MIMEText(lbody.encode(options['encoding']), 'plain', options['encoding'])
-        msgs[keywords['$EMAIL$'][i]] = lbody
+        try:
+            address_check(msgs[keywords['$EMAIL$'][i]])
+            msgs[keywords['$EMAIL$'][i]] = lbody
+        except ValueError:
+            error('Invalid to email: ' + keywords['$EMAIL$'][i]
+                  + '. Email not sent.')
 
     return msgs
 
@@ -273,10 +286,9 @@ def add_email_headers(options, msgs):
     return None
 
 def send_messages(options, msgs):
-    if not options['fake']:
-        server = smtplib.SMTP(options['server'], port=options['port'])
+    server = smtplib.SMTP(options['server'], port=options['port'])
 
-    if options['smtpuser'] is not None and not options['fake']:
+    if options['smtpuser'] is not None:
         server.starttls()
         server.login(options['smtpuser'], options['smtppassword'])
 
@@ -296,23 +308,10 @@ def send_messages(options, msgs):
             if len(out) != 0:
                 error(str(out))
 
-    if not options['fake']:
-        server.close()
-
-def main(arguments):
-    options = parse_command_line_options(arguments)
-    keywords, email_count = parse_parameter_file(options)
-    msgs = create_email_bodies(options, keywords, email_count, sys.stdin.read())
-    add_email_headers(options, msgs)
-    send_messages(options, msgs)
+    server.close()
 
 def test_dummy():
     pass
-
-def test_command_help():
-    import pytest
-    with pytest.raises(SystemExit):
-        main(['-h'])
 
 def test_parse_parameter_file():
     expected_keywords = {u'$VALUE$': [u'this is a test'], u'$EMAIL$': [u'testrecv@test']}
@@ -357,52 +356,9 @@ def test_local_sending():
         add_email_headers(options, msgs)
         assert msgs['testrecv@test.org'].as_string() == expected_email.as_string()
 
-@contextlib.contextmanager
-def replace_stdin(text):
-    input = io.BytesIO(text)
-    old = sys.stdin
-    sys.stdin, old = input, sys.stdin
-    try:
-        yield
-    finally:
-        sys.stdin = old
-
-@contextlib.contextmanager
-def fake_smtp_server(address):
-    devnull = open(os.devnull, 'w')
-    server = subprocess.Popen(['python',
-                               '-m', 'smtpd',
-                               '-n',
-                               '-d',
-                               '-c', 'DebuggingServer',
-                               address],
-                              stdin=devnull,
-                              stdout=devnull,
-                              stderr=subprocess.PIPE)
-    try:
-        time.sleep(1)
-        yield server
-    finally:
-        server.terminate()
-
-def test_fake_sending():
-    address = 'localhost:1025'
-    with tempfile.NamedTemporaryFile() as f:
-        f.write('$EMAIL$;$VALUE$\ntestrecv@test;this is a test')
-        f.flush()
-
-        with fake_smtp_server(address) as server:
-            with replace_stdin('EMAIL=$EMAIL$\nVALUE=$VALUE$'):
-                main(['-F', 'fake@foobar.com',
-                      '-z', address,
-                      f.name])
-
-    output = server.stderr.read()
-    assert 'MAIL FROM:<fake@foobar.com>' in output
-    assert 'RCPT TO:<testrecv@test>' in output
-
-    encoded = base64.b64encode(b'EMAIL=testrecv@test\nVALUE=this is a test')
-    assert encoded in output
-
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    options = parse_command_line_options(sys.argv[1:])
+    keywords, email_count = parse_parameter_file(options)
+    msgs = create_email_bodies(options, keywords, email_count, sys.stdin.read())
+    add_email_headers(options, msgs)
+    send_messages(options, msgs)
