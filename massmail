@@ -112,14 +112,15 @@ def error(s):
 def parse_command_line_options(arguments):
     # parse options
     try:
-        opts, args = getopt.getopt(arguments, "hfs:F:S:B:R:e:u:p:P:z:")
-    except getopt.GetoptError, err:
+        opts, args = getopt.getopt(arguments, "hfs:F:S:B:R:e:u:p:P:z:send:")
+    except getopt.GetoptError as err:
         error(str(err)+USAGE)
 
     # set default options
     options = {
         'sep': u';',
         'fake': True,
+        'send': '',
         'from': '',
         'subject': '',
         'bcc': '',
@@ -392,7 +393,7 @@ def test_fake_sending():
 
         with fake_smtp_server(address) as server:
             with replace_stdin('EMAIL=$EMAIL$\nVALUE=$VALUE$'):
-                main(['-F', 'fake@foobar.com',
+                main(['--send', '-F', 'fake@foobar.com',
                       '-z', address,
                       f.name])
 
