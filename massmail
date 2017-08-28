@@ -337,14 +337,14 @@ def test_parse_parameter_file():
 
 def test_local_sending():
     parameter_string = '$EMAIL$;$NAME$;$VALUE$\ntestrecv@test.org;TestName;531'
-    email_body = 'Dear $NAME$,\nthis is a test: $VALUE$\nBest regards'
+    email_body = 'Dear $NAME$,\nthis is a test: $VALUE$\nBest!'
     email_to = 'testrecv@test.org'
     email_from = 'testfrom@test.org'
     email_subject = 'Test Subject'
     email_encoding = 'utf-8'
 
     expected_email = email.mime.text.MIMEText(
-        'Dear TestName,\nthis is a test: 531\nBest'.encode(email_encoding),
+        'Dear TestName,\nthis is a test: 531\nBest!'.encode(email_encoding),
         'plain', email_encoding)
     expected_email['To'] = email_to
     expected_email['From'] = email_from
