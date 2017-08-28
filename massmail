@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # Script to send mass email
 #
-# Copyright (C) 2003-2017 Tiziano Zito <opossumnano@gmail.com>, Jakob Jordan <jakobjordan@posteo.de>
+# Copyright (C) 2003-2017 Tiziano Zito <opossumnano@gmail.com>,
+#                         Jakob Jordan <jakobjordan@posteo.de>
 #
 # This script is free software and comes without any warranty, to
 # the extent permitted by applicable law. You can redistribute it
@@ -23,7 +24,12 @@
 #
 # 0. You just DO WHAT THE FUCK YOU WANT TO.
 
-import smtplib, getopt, sys, os, email, getpass
+import smtplib
+import getopt
+import sys
+import os
+import email
+import getpass
 import email.header
 import email.mime.text
 import io
@@ -102,22 +108,25 @@ My self.
 
 * Example usage:
 
-%s  -F "Great Guy <gg@guys.com>" -S "You are a great guy" -B "Not so great Guy <ngg@guys.com>" parameter-file < body
+%s  -F "Great Guy <gg@guys.com>" -S "You are a great guy" -B "Not so great Guy
+<ngg@guys.com>" parameter-file < body
 
-"""%(PROGNAME, PROGNAME)
+""" % (PROGNAME, PROGNAME)
+
 
 def error(s):
-    sys.stderr.write(PROGNAME+': ')
-    sys.stderr.write(s+'\n')
+    sys.stderr.write(PROGNAME + ': ')
+    sys.stderr.write(s + '\n')
     sys.stderr.flush()
     sys.exit(-1)
+
 
 def parse_command_line_options(arguments):
     # parse options
     try:
         opts, args = getopt.getopt(arguments, "hfs:F:S:B:R:e:u:p:P:z:")
     except getopt.GetoptError, err:
-        error(str(err)+USAGE)
+        error(str(err) + USAGE)
 
     # set default options
     options = {
@@ -174,12 +183,14 @@ def parse_command_line_options(arguments):
 
     # get password if needed
     if options['smtpuser'] is not None and options['smtppassword'] is None:
-        options['smtppassword'] = getpass.getpass('Enter password for %s: '%options['smtpuser'])
+        options['smtppassword'] = getpass.getpass(
+            'Enter password for %s: ' % options['smtpuser'])
 
     # set filenames of parameter and mail body
     options['fn_parameters'] = args[0]
 
     return options
+
 
 def parse_parameter_file(options):
     pars_fh = open(options['fn_parameters'], 'rbU')
@@ -189,17 +200,19 @@ def parse_parameter_file(options):
     try:
         pars = unicode(pars, encoding=options['encoding'])
     except UnicodeDecodeError, e:
-        error('Error decoding "'+options['fn_parameters']+'": '+str(e))
+        error('Error decoding "' + options['fn_parameters'] + '": ' + str(e))
 
     try:
-        options['subject'] = unicode(options['subject'], encoding=options['encoding'])
+        options['subject'] = unicode(
+            options['subject'], encoding=options['encoding'])
     except UnicodeDecodeError, e:
-        error('Error decoding SUBJECT: '+str(e))
+        error('Error decoding SUBJECT: ' + str(e))
 
     try:
-        options['from'] = unicode(options['from'], encoding=options['encoding'])
+        options['from'] = unicode(
+            options['from'], encoding=options['encoding'])
     except UnicodeDecodeError, e:
-        error('Error decoding FROM: '+str(e))
+        error('Error decoding FROM: ' + str(e))
 
     if options['in_reply_to'] and not options['in_reply_to'].startswith('<'):
         options['in_reply_to'] = '<{}>'.format(options['in_reply_to'])
@@ -212,12 +225,13 @@ def parse_parameter_file(options):
 
     # fail immediately if no EMAIL keyword is found
     if '$EMAIL$' not in keywords_list:
-        error('No $EMAIL$ keyword found in %s'%options['fn_parameters'])
+        error('No $EMAIL$ keyword found in %s' % options['fn_parameters'])
 
     # check that all keywords start and finish with a '$' character
     for key in keywords_list:
         if not key.startswith('$') or not key.endswith('$'):
-            error(('Keyword "%s" malformed: should be $KEYWORD$'%key).encode(options['encoding']))
+            error(('Keyword "%s" malformed: should be $KEYWORD$' %
+                   key).encode(options['encoding']))
 
     # gather all values
     email_count = 0
@@ -229,18 +243,21 @@ def parse_parameter_file(options):
         values = [key.strip() for key in line.split(options['sep'])]
         if len(values) != len(keywords_list):
             error(('Line %d in "%s" malformed: %d values found instead of'
-                   ' %d: %s'%(count+1,options['fn_parameters'],len(values),len(keywords_list),line)).encode(options['encoding']))
+                   ' %d: %s' % (count + 1, options['fn_parameters'],
+                                len(values), len(keywords_list),
+                                line)).encode(options['encoding']))
         for i, key in enumerate(keywords_list):
             keywords[key].append(values[i])
         email_count += 1
 
     return keywords, email_count
 
+
 def create_email_bodies(options, keywords, email_count, body):
     try:
         body = unicode(body, encoding=options['encoding'])
     except UnicodeDecodeError, e:
-        error('Error decoding email body: '+str(e))
+        error('Error decoding email body: ' + str(e))
 
     # find keywords and substitute with values
     # we need to create email_count bodies
@@ -251,10 +268,12 @@ def create_email_bodies(options, keywords, email_count, body):
         for key in keywords:
             lbody = lbody.replace(key, keywords[key][i])
         # encode body
-        lbody = email.mime.text.MIMEText(lbody.encode(options['encoding']), 'plain', options['encoding'])
+        lbody = email.mime.text.MIMEText(lbody.encode(
+            options['encoding']), 'plain', options['encoding'])
         msgs[keywords['$EMAIL$'][i]] = lbody
 
     return msgs
+
 
 def add_email_headers(options, msgs):
     # msgs is now a dictionary with {emailaddr:body}
@@ -265,12 +284,15 @@ def add_email_headers(options, msgs):
         msg['To'] = str(emailaddr)
         msg['From'] = email.header.Header(options['from'])
         if options['subject']:
-            msg['Subject'] = email.header.Header(options['subject'].encode(options['encoding']), options['encoding'])
+            msg['Subject'] = email.header.Header(
+                options['subject'].encode(options['encoding']),
+                options['encoding'])
         if options['in_reply_to']:
             msg['In-Reply-To'] = email.header.Header(options['in_reply_to'])
         msgs[emailaddr] = msg
 
     return None
+
 
 def send_messages(options, msgs):
     if not options['fake']:
@@ -289,7 +311,8 @@ def send_messages(options, msgs):
             print msgs[emailaddr].as_string()
         else:
             try:
-                out = server.sendmail(options['from'], emails, msgs[emailaddr].as_string())
+                out = server.sendmail(
+                    options['from'], emails, msgs[emailaddr].as_string())
             except Exception, err:
                 error(str(err))
 
@@ -299,23 +322,29 @@ def send_messages(options, msgs):
     if not options['fake']:
         server.close()
 
+
 def main(arguments):
     options = parse_command_line_options(arguments)
     keywords, email_count = parse_parameter_file(options)
-    msgs = create_email_bodies(options, keywords, email_count, sys.stdin.read())
+    msgs = create_email_bodies(
+        options, keywords, email_count, sys.stdin.read())
     add_email_headers(options, msgs)
     send_messages(options, msgs)
 
+
 def test_dummy():
     pass
+
 
 def test_command_help():
     import pytest
     with pytest.raises(SystemExit):
         main(['-h'])
 
+
 def test_parse_parameter_file():
-    expected_keywords = {u'$VALUE$': [u'this is a test'], u'$EMAIL$': [u'testrecv@test']}
+    expected_keywords = {u'$VALUE$': [
+        u'this is a test'], u'$EMAIL$': [u'testrecv@test']}
     with tempfile.NamedTemporaryFile() as f:
         f.write('$EMAIL$;$VALUE$\ntestrecv@test;this is a test')
         f.flush()
@@ -328,18 +357,22 @@ def test_parse_parameter_file():
         keywords, email_count = parse_parameter_file(options)
     assert keywords == expected_keywords
 
+
 def test_local_sending():
     parameter_string = '$EMAIL$;$NAME$;$VALUE$\ntestrecv@test.org;TestName;531'
-    email_body = 'Dear $NAME$,\nthis is a test: $VALUE$\nBest regards'
+    email_body = 'Dear $NAME$,\nthis is a test: $VALUE$\nBest!'
     email_to = 'testrecv@test.org'
     email_from = 'testfrom@test.org'
     email_subject = 'Test Subject'
     email_encoding = 'utf-8'
 
-    expected_email = email.mime.text.MIMEText('Dear TestName,\nthis is a test: 531\nBest regards'.encode(email_encoding), 'plain', email_encoding)
+    expected_email = email.mime.text.MIMEText(
+        'Dear TestName,\nthis is a test: 531\nBest!'.encode(email_encoding),
+        'plain', email_encoding)
     expected_email['To'] = email_to
     expected_email['From'] = email_from
-    expected_email['Subject'] = email.header.Header(email_subject.encode(email_encoding), email_encoding)
+    expected_email['Subject'] = email.header.Header(
+        email_subject.encode(email_encoding), email_encoding)
 
     with tempfile.NamedTemporaryFile() as f:
         f.write(parameter_string)
@@ -355,7 +388,9 @@ def test_local_sending():
         keywords, email_count = parse_parameter_file(options)
         msgs = create_email_bodies(options, keywords, email_count, email_body)
         add_email_headers(options, msgs)
-        assert msgs['testrecv@test.org'].as_string() == expected_email.as_string()
+        assert msgs['testrecv@test.org'].as_string(
+        ) == expected_email.as_string()
+
 
 @contextlib.contextmanager
 def replace_stdin(text):
@@ -366,6 +401,7 @@ def replace_stdin(text):
         yield
     finally:
         sys.stdin = old
+
 
 @contextlib.contextmanager
 def fake_smtp_server(address):
@@ -385,6 +421,7 @@ def fake_smtp_server(address):
     finally:
         server.terminate()
 
+
 def test_fake_sending():
     address = 'localhost:1025'
     with tempfile.NamedTemporaryFile() as f:
@@ -403,6 +440,7 @@ def test_fake_sending():
 
     encoded = base64.b64encode(b'EMAIL=testrecv@test\nVALUE=this is a test')
     assert encoded in output
+
 
 if __name__ == '__main__':
     main(sys.argv[1:])
