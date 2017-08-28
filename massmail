@@ -33,7 +33,6 @@ import time
 import subprocess
 import base64
 
-
 PROGNAME = os.path.basename(sys.argv[0])
 USAGE = """Send mass mail
 Usage:
@@ -182,24 +181,9 @@ def parse_command_line_options(arguments):
     return options
 
 def parse_parameter_file(options):
-    pars_fh = open(options['fn_parameters'], 'rbU')
+    pars_fh = open(options['fn_parameters'])
     pars = pars_fh.read()
     pars_fh.close()
-
-    try:
-        pars = unicode(pars, encoding=options['encoding'])
-    except UnicodeDecodeError as e:
-        error('Error decoding "'+options['fn_parameters']+'": '+str(e))
-
-    try:
-        options['subject'] = unicode(options['subject'], encoding=options['encoding'])
-    except UnicodeDecodeError as e:
-        error('Error decoding SUBJECT: '+str(e))
-
-    try:
-        options['from'] = unicode(options['from'], encoding=options['encoding'])
-    except UnicodeDecodeError as e:
-        error('Error decoding FROM: '+str(e))
 
     if options['in_reply_to'] and not options['in_reply_to'].startswith('<'):
         options['in_reply_to'] = '<{}>'.format(options['in_reply_to'])
@@ -237,11 +221,6 @@ def parse_parameter_file(options):
     return keywords, email_count
 
 def create_email_bodies(options, keywords, email_count, body):
-    try:
-        body = unicode(body, encoding=options['encoding'])
-    except UnicodeDecodeError as e:
-        error('Error decoding email body: '+str(e))
-
     # find keywords and substitute with values
     # we need to create email_count bodies
     msgs = {}
@@ -314,7 +293,7 @@ def test_command_help():
 
 def test_parse_parameter_file():
     expected_keywords = {u'$VALUE$': [u'this is a test'], u'$EMAIL$': [u'testrecv@test']}
-    with tempfile.NamedTemporaryFile() as f:
+    with tempfile.NamedTemporaryFile('wt') as f:
         f.write('$EMAIL$;$VALUE$\ntestrecv@test;this is a test')
         f.flush()
         cmd_options = [
@@ -339,7 +318,7 @@ def test_local_sending():
     expected_email['From'] = email_from
     expected_email['Subject'] = email.header.Header(email_subject.encode(email_encoding), email_encoding)
 
-    with tempfile.NamedTemporaryFile() as f:
+    with tempfile.NamedTemporaryFile('wt') as f:
         f.write(parameter_string)
         f.flush()
         cmd_options = [
@@ -357,7 +336,7 @@ def test_local_sending():
 
 @contextlib.contextmanager
 def replace_stdin(text):
-    input = io.BytesIO(text)
+    input = io.StringIO(text)
     old = sys.stdin
     sys.stdin, old = input, sys.stdin
     try:
@@ -385,7 +364,7 @@ def fake_smtp_server(address):
 
 def test_fake_sending():
     address = 'localhost:1025'
-    with tempfile.NamedTemporaryFile() as f:
+    with tempfile.NamedTemporaryFile('wt') as f:
         f.write('$EMAIL$;$VALUE$\ntestrecv@test;this is a test')
         f.flush()
 
@@ -396,8 +375,8 @@ def test_fake_sending():
                       f.name])
 
     output = server.stderr.read()
-    assert 'MAIL FROM:<fake@foobar.com>' in output
-    assert 'RCPT TO:<testrecv@test>' in output
+    assert b'MAIL FROM:<fake@foobar.com>' in output
+    assert b'RCPT TO:<testrecv@test>' in output
 
     encoded = base64.b64encode(b'EMAIL=testrecv@test\nVALUE=this is a test')
     assert encoded in output
