@@ -57,7 +57,7 @@ Options:
                     You have been warned!
 
   --send            send for real - default set to fake & will not send email
- 
+
   -z SERVER         the SMTP server to use. This argument is required
 
   -P PORT           the SMTP port to use.
@@ -148,6 +148,8 @@ def parse_command_line_options(arguments):
             error(USAGE)
         elif option == "--send":
             options['fake'] = False
+        elif option == "-f":
+            pass
         elif option == "-u":
             options['smtpuser'] = value
         elif option == "-p":
