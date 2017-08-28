@@ -182,9 +182,8 @@ def parse_command_line_options(arguments):
     return options
 
 def parse_parameter_file(options):
-    pars_fh = open(options['fn_parameters'], 'rbU')
-    pars = pars_fh.read()
-    pars_fh.close()
+    with open(options['fn_parameters'], 'rbU') as pars_fh:
+        pars = pars_fh.read()
 
     try:
         pars = unicode(pars, encoding=options['encoding'])
@@ -369,21 +368,21 @@ def replace_stdin(text):
 
 @contextlib.contextmanager
 def fake_smtp_server(address):
-    devnull = open(os.devnull, 'w')
-    server = subprocess.Popen(['python',
-                               '-m', 'smtpd',
-                               '-n',
-                               '-d',
-                               '-c', 'DebuggingServer',
-                               address],
-                              stdin=devnull,
-                              stdout=devnull,
-                              stderr=subprocess.PIPE)
-    try:
-        time.sleep(1)
-        yield server
-    finally:
-        server.terminate()
+    with open(os.devnull, 'w') as devnull:
+        server = subprocess.Popen(['python',
+                                   '-m', 'smtpd',
+                                   '-n',
+                                   '-d',
+                                   '-c', 'DebuggingServer',
+                                   address],
+                                  stdin=devnull,
+                                  stdout=devnull,
+                                  stderr=subprocess.PIPE)
+        try:
+            time.sleep(1)
+            yield server
+        finally:
+            server.terminate()
 
 def test_fake_sending():
     address = 'localhost:1025'
