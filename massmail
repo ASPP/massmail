@@ -56,8 +56,8 @@ Options:
                     up this one, your email will be full of rubbish:
                     You have been warned!
 
-  --send            send for real
-
+  --send            send for real - default set to fake & will not send email
+ 
   -z SERVER         the SMTP server to use. This argument is required
 
   -P PORT           the SMTP port to use.
@@ -119,7 +119,7 @@ def parse_command_line_options(arguments):
     # set default options
     options = {
         'sep': u';',
-        'fake': False,
+        'fake': True,
         'from': '',
         'subject': '',
         'bcc': '',
@@ -146,8 +146,8 @@ def parse_command_line_options(arguments):
             options['in_reply_to'] = value
         elif option == "-h":
             error(USAGE)
-        elif option == "-f":
-            options['fake'] = True
+        elif option == "--send":
+            options['fake'] = False
         elif option == "-u":
             options['smtpuser'] = value
         elif option == "-p":
