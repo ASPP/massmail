@@ -8,9 +8,9 @@
 # and/or modify it under the terms of the Do What The Fuck You Want
 # To Public License, Version 2, as published by Sam Hocevar.
 # http://www.wtfpl.net
-# 
+#
 # Full license text:
-# 
+#
 # DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
 # Version 2, December 2004.
 #
@@ -26,7 +26,12 @@
 import smtplib, getopt, sys, os, email, getpass
 import email.header
 import email.mime.text
+import io
+import contextlib
 import tempfile
+import time
+import subprocess
+import base64
 
 
 PROGNAME = os.path.basename(sys.argv[0])
@@ -60,7 +65,7 @@ Options:
 
   -P PORT           the SMTP port to use.
 
-  -u                SMTP user name. If not set, use anonymous SMTP 
+  -u                SMTP user name. If not set, use anonymous SMTP
                     connection
 
   -p                SMTP password. If not set you will be prompted for one
@@ -98,7 +103,7 @@ My self.
 * Example usage:
 
 %s  -F "Great Guy <gg@guys.com>" -S "You are a great guy" -B "Not so great Guy <ngg@guys.com>" parameter-file < body
- 
+
 """%(PROGNAME, PROGNAME)
 
 def error(s):
@@ -292,8 +297,20 @@ def send_messages(options, msgs):
 
     server.close()
 
+def main(arguments):
+    options = parse_command_line_options(arguments)
+    keywords, email_count = parse_parameter_file(options)
+    msgs = create_email_bodies(options, keywords, email_count, sys.stdin.read())
+    add_email_headers(options, msgs)
+    send_messages(options, msgs)
+
 def test_dummy():
     pass
+
+def test_command_help():
+    import pytest
+    with pytest.raises(SystemExit):
+        main(['-h'])
 
 def test_parse_parameter_file():
     expected_keywords = {u'$VALUE$': [u'this is a test'], u'$EMAIL$': [u'testrecv@test']}
@@ -338,9 +355,52 @@ def test_local_sending():
         add_email_headers(options, msgs)
         assert msgs['testrecv@test.org'].as_string() == expected_email.as_string()
 
+@contextlib.contextmanager
+def replace_stdin(text):
+    input = io.BytesIO(text)
+    old = sys.stdin
+    sys.stdin, old = input, sys.stdin
+    try:
+        yield
+    finally:
+        sys.stdin = old
+
+@contextlib.contextmanager
+def fake_smtp_server(address):
+    devnull = open(os.devnull, 'w')
+    server = subprocess.Popen(['python',
+                               '-m', 'smtpd',
+                               '-n',
+                               '-d',
+                               '-c', 'DebuggingServer',
+                               address],
+                              stdin=devnull,
+                              stdout=devnull,
+                              stderr=subprocess.PIPE)
+    try:
+        time.sleep(1)
+        yield server
+    finally:
+        server.terminate()
+
+def test_fake_sending():
+    address = 'localhost:1025'
+    with tempfile.NamedTemporaryFile() as f:
+        f.write('$EMAIL$;$VALUE$\ntestrecv@test;this is a test')
+        f.flush()
+
+        with fake_smtp_server(address) as server:
+            with replace_stdin('EMAIL=$EMAIL$\nVALUE=$VALUE$'):
+                main(['-F', 'fake@foobar.com',
+                      '-z', address,
+                      f.name])
+
+    output = server.stderr.read()
+    assert 'MAIL FROM:<fake@foobar.com>' in output
+    assert 'RCPT TO:<testrecv@test>' in output
+
+    encoded = base64.b64encode(b'EMAIL=testrecv@test\nVALUE=this is a test')
+    assert encoded in output
+
 if __name__ == '__main__':
-    options = parse_command_line_options(sys.argv[1:])
-    keywords, email_count = parse_parameter_file(options)
-    msgs = create_email_bodies(options, keywords, email_count, sys.stdin.read())
-    add_email_headers(options, msgs)
-    send_messages(options, msgs)
+    main(sys.argv[1:])
