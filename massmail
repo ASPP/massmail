@@ -32,6 +32,7 @@ import tempfile
 import time
 import subprocess
 import base64
+import re
 
 PROGNAME = os.path.basename(sys.argv[0])
 USAGE = """Send mass mail
@@ -226,9 +227,8 @@ def create_email_bodies(options, keywords, email_count, body):
     msgs = {}
 
     for i in range(email_count):
-        lbody = body
-        for key in keywords:
-            lbody = lbody.replace(key, keywords[key][i])
+        lbody = re.sub(r'\$\w+\$', lambda m: keywords[m.group(0)][i], body)
+
         # encode body
         lbody = email.mime.text.MIMEText(lbody.encode(options['encoding']), 'plain', options['encoding'])
         msgs[keywords['$EMAIL$'][i]] = lbody
