@@ -182,7 +182,7 @@ def parse_command_line_options(arguments):
     return options
 
 def parse_parameter_file(options):
-    with  open(options['fn_parameters'], 'rbU') as pars_fh:
+    with open(options['fn_parameters'], 'rbU') as pars_fh:
         pars = pars_fh.read()
 
     try:
