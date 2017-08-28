@@ -26,6 +26,7 @@
 import smtplib, getopt, sys, os, email, getpass
 import email.header
 import email.mime.text
+import tempfile
 
 
 PROGNAME = os.path.basename(sys.argv[0])
@@ -295,6 +296,20 @@ def send_messages(options, msgs):
 
 def test_dummy():
     pass
+
+def test_parse_parameter_file():
+    expected_keywords = {u'$VALUE$': [u'this is a test'], u'$EMAIL$': [u'testrecv@test']}
+    with tempfile.NamedTemporaryFile() as f:
+        f.write('$EMAIL$;$VALUE$\ntestrecv@test;this is a test')
+        f.flush()
+        cmd_options = [
+            '-F', 'testfrom@test',
+            '-z', 'localhost',
+            f.name,
+        ]
+        options = parse_command_line_options(cmd_options)
+        keywords, email_count = parse_parameter_file(options)
+    assert keywords == expected_keywords
 
 if __name__ == '__main__':
     options = parse_command_line_options(sys.argv[1:])
