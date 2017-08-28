@@ -166,7 +166,7 @@ def parse_command_line_options(arguments):
     if len(options['from']) == 0:
         error('You must set a from address with option -F')
 
-    if options['server'] is None:
+    if options['server'] is None and not options['fake']:
         error('You must set a SMTP server with option -z')
 
     if options['sep'] == ",":
@@ -273,9 +273,10 @@ def add_email_headers(options, msgs):
     return None
 
 def send_messages(options, msgs):
-    server = smtplib.SMTP(options['server'], port=options['port'])
+    if not options['fake']:
+        server = smtplib.SMTP(options['server'], port=options['port'])
 
-    if options['smtpuser'] is not None:
+    if options['smtpuser'] is not None and not options['fake']:
         server.starttls()
         server.login(options['smtpuser'], options['smtppassword'])
 
@@ -295,7 +296,8 @@ def send_messages(options, msgs):
             if len(out) != 0:
                 error(str(out))
 
-    server.close()
+    if not options['fake']:
+        server.close()
 
 def main(arguments):
     options = parse_command_line_options(arguments)
