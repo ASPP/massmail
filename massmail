@@ -347,7 +347,7 @@ def replace_stdin(text):
 @contextlib.contextmanager
 def fake_smtp_server(address):
     devnull = open(os.devnull, 'w')
-    server = subprocess.Popen(['python',
+    server = subprocess.Popen(['python2',
                                '-m', 'smtpd',
                                '-n',
                                '-d',
