@@ -221,6 +221,11 @@ def parse_parameter_file(options):
     return keywords, email_count
 
 def create_email_bodies(options, keywords, email_count, body):
+    try:
+        body = unicode(body, encoding=options['encoding'])
+    except UnicodeDecodeError as e:
+        error('Error decoding email body: '+str(e))
+
     # find keywords and substitute with values
     # we need to create email_count bodies
     msgs = {}
