@@ -37,6 +37,7 @@ import tempfile
 import time
 import subprocess
 import base64
+import string
 
 PROGNAME = os.path.basename(sys.argv[0])
 USAGE = """Send mass mail
@@ -233,6 +234,28 @@ def create_email_bodies(options, keywords, email_count, body):
     # find keywords and substitute with values
     # we need to create email_count bodies
     msgs = {}
+
+
+    # Remove punctuation except our $ character
+    exclude = set(string.punctuation) - set(['$'])
+    body = ''.join(ch for ch in body if ch not in exclude)
+
+    # Split the words by whitespace and go through them one by one
+    for word in body.split():
+        print(word, len(word), '\n')
+
+        # If we have a single $ somewhere
+        if len(word) == 1 and word[0] == '$':
+            raise(ValueError)
+
+        # If we start with $ but do not end with it
+        if word[0] == '$' and word[-1] != '$':
+            raise(ValueError)
+
+        # If we end with $ but did not start with it
+        if word[-1] == '$' and word[0] != '$':
+            raise(ValueError)
+
 
     for i in range(email_count):
         lbody = body
