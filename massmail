@@ -216,7 +216,7 @@ def parse_parameter_file(options):
             error(('Line %d in "%s" malformed: %d values found instead of'
                    ' %d: %s'%(count+1,options['fn_parameters'],len(values),len(keywords_list),line)).encode(options['encoding']))
         # make sure sender doesn't get the email
-        if keywords['$EMAIL$'] == options['from']:
+        if options['from'] in values:
             continue
         for i, key in enumerate(keywords_list):
             keywords[key].append(values[i])
@@ -310,10 +310,18 @@ def test_parse_parameter_file():
         keywords, email_count = parse_parameter_file(options)
     assert keywords == expected_keywords
 
-def test_exclude_sender_from_recipients():
-    expected_keywords = {u'$VALUE$': [u'this is a test'], u'$EMAIL$': [u'testrecv@test']}
+
+def test_remove_sender_from_recipients():
+    expected_keywords = {
+        u'$VALUE$': [u'this is a test'],
+        u'$EMAIL$': [u'testrecv@test']
+    }
     with tempfile.NamedTemporaryFile('wt') as f:
-        f.write('$EMAIL$;$VALUE$\ntestrecv@test;this is a test')
+        f.write(
+            '$EMAIL$;$VALUE$\n\
+            testrecv@test;this is a test\n\
+            testfrom@test;this is a test'
+        )
         f.flush()
         cmd_options = [
             '-F', 'testfrom@test',
@@ -323,6 +331,7 @@ def test_exclude_sender_from_recipients():
         options = parse_command_line_options(cmd_options)
         keywords, email_count = parse_parameter_file(options)
     assert keywords == expected_keywords
+
 
 def test_local_sending():
     parameter_string = '$EMAIL$;$NAME$;$VALUE$\ntestrecv@test.org;TestName;531'
