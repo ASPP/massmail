@@ -58,10 +58,7 @@ Options:
                     up this one, your email will be full of rubbish:
                     You have been warned!
 
-  -f                fake run: don't really send emails, just print to
-                    standard output what would be done. Don't be scared
-                    if you can not read the body: it is base64 encoded
-                    UTF8 text
+  --send            send for real - default set to fake & will not send email
 
   -z SERVER         the SMTP server to use. This argument is required
 
@@ -117,14 +114,15 @@ def error(s):
 def parse_command_line_options(arguments):
     # parse options
     try:
-        opts, args = getopt.getopt(arguments, "hfs:F:S:B:R:e:u:p:P:z:")
+        opts, args = getopt.getopt(arguments, "hfs:F:S:B:R:e:u:p:P:z:", ['send'])
     except getopt.GetoptError as err:
         error(str(err)+USAGE)
 
     # set default options
     options = {
         'sep': u';',
-        'fake': False,
+        'fake': True,
+        'send': '',
         'from': '',
         'subject': '',
         'bcc': '',
@@ -151,8 +149,10 @@ def parse_command_line_options(arguments):
             options['in_reply_to'] = value
         elif option == "-h":
             error(USAGE)
+        elif option == "--send":
+            options['fake'] = False
         elif option == "-f":
-            options['fake'] = True
+            pass
         elif option == "-u":
             options['smtpuser'] = value
         elif option == "-p":
@@ -224,6 +224,11 @@ def parse_parameter_file(options):
     return keywords, email_count
 
 def create_email_bodies(options, keywords, email_count, body):
+    try:
+        body = unicode(body, encoding=options['encoding'])
+    except UnicodeDecodeError as e:
+        error('Error decoding email body: '+str(e))
+
     # find keywords and substitute with values
     # we need to create email_count bodies
     msgs = {}
@@ -374,7 +379,7 @@ def test_fake_sending():
 
         with fake_smtp_server(address) as server:
             with replace_stdin('EMAIL=$EMAIL$\nVALUE=$VALUE$'):
-                main(['-F', 'fake@foobar.com',
+                main(['--send', '-F', 'fake@foobar.com',
                       '-z', address,
                       f.name])
 
