@@ -48,6 +48,8 @@ Options:
   -B BCC            set the Bcc: header for all messages.
                     Must be ASCII
 
+  -R In-Reply-To    set the In-Reply-To: takes a Message-ID as input
+
   -s SEPARATOR      set field separator in parameter file,
                     default: ";"
 
