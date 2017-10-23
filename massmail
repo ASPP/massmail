@@ -37,7 +37,7 @@ import re
 PROGNAME = os.path.basename(sys.argv[0])
 USAGE = """Send mass mail
 Usage:
-  %s [...] PARAMETER_FILE < BODY
+  {} [...] PARAMETER_FILE < BODY
 
 Options:
   -F FROM           set the From: header for all messages.
@@ -104,9 +104,9 @@ My self.
 
 * Example usage:
 
-%s  -F "Great Guy <gg@guys.com>" -S "You are a great guy" -B "Not so great Guy <ngg@guys.com>" parameter-file < body
+{}  -F "Great Guy <gg@guys.com>" -S "You are a great guy" -B "Not so great Guy <ngg@guys.com>" parameter-file < body
 
-"""%(PROGNAME, PROGNAME)
+""".format(PROGNAME, PROGNAME)
 
 def error(s):
     sys.stderr.write(PROGNAME+': ')
@@ -176,7 +176,7 @@ def parse_command_line_options(arguments):
 
     # get password if needed
     if options['smtpuser'] is not None and options['smtppassword'] is None:
-        options['smtppassword'] = getpass.getpass('Enter password for %s: '%options['smtpuser'])
+        options['smtppassword'] = getpass.getpass('Enter password for {}: '.format(options['smtpuser']))
 
     # set filenames of parameter and mail body
     options['fn_parameters'] = args[0]
@@ -199,12 +199,12 @@ def parse_parameter_file(options):
 
     # fail immediately if no EMAIL keyword is found
     if '$EMAIL$' not in keywords_list:
-        error('No $EMAIL$ keyword found in %s'%options['fn_parameters'])
+        error('No $EMAIL$ keyword found in {}'.format(options['fn_parameters']))
 
     # check that all keywords start and finish with a '$' character
     for key in keywords_list:
         if not key.startswith('$') or not key.endswith('$'):
-            error(('Keyword "%s" malformed: should be $KEYWORD$'%key).encode(options['encoding']))
+            error(('Keyword "{}" malformed: should be $KEYWORD$'.format(key)).encode(options['encoding']))
 
     # gather all values
     email_count = 0
@@ -215,8 +215,8 @@ def parse_parameter_file(options):
             continue
         values = [key.strip() for key in line.split(options['sep'])]
         if len(values) != len(keywords_list):
-            error(('Line %d in "%s" malformed: %d values found instead of'
-                   ' %d: %s'%(count+1,options['fn_parameters'],len(values),len(keywords_list),line)).encode(options['encoding']))
+            error(('Line {} in "{}" malformed: {} values found instead of'
+                   ' {}: {}'.format(count+1,options['fn_parameters'],len(values),len(keywords_list),line)).encode(options['encoding']))
         for i, key in enumerate(keywords_list):
             keywords[key].append(values[i])
         email_count += 1
