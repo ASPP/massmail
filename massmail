@@ -150,7 +150,8 @@ def parse_command_line_options(arguments):
         elif option == "-R":
             options['in_reply_to'] = value
         elif option == "-h":
-            error(USAGE)
+            print(USAGE)
+            exit(0)
         elif option == "-f":
             options['fake'] = True
         elif option == "-u":
