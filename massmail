@@ -65,7 +65,7 @@ Options:
 
   -z SERVER         the SMTP server to use. This argument is required
 
-  -P PORT           the SMTP port to use.
+  -P PORT           the SMTP port to use. Must be between 1 and 65535.
 
   -u                SMTP user name. If not set, use anonymous SMTP
                     connection
@@ -115,7 +115,12 @@ def error(s):
     sys.exit(-1)
 
 def parse_command_line_options(arguments):
-    # parse options
+    """Parse options.
+
+    Returns a dictionary of options.
+
+    Arguments are checked for validity.
+    """
     try:
         opts, args = getopt.getopt(arguments, "hfs:F:S:B:R:e:u:p:P:z:")
     except getopt.GetoptError as err:
@@ -287,104 +292,6 @@ def main(arguments):
     msgs = create_email_bodies(options, keywords, email_count, sys.stdin.read())
     add_email_headers(options, msgs)
     send_messages(options, msgs)
-
-def test_dummy():
-    pass
-
-def test_command_help():
-    import pytest
-    with pytest.raises(SystemExit):
-        main(['-h'])
-
-def test_parse_parameter_file():
-    expected_keywords = {u'$VALUE$': [u'this is a test'], u'$EMAIL$': [u'testrecv@test']}
-    with tempfile.NamedTemporaryFile('wt') as f:
-        f.write('$EMAIL$;$VALUE$\ntestrecv@test;this is a test')
-        f.flush()
-        cmd_options = [
-            '-F', 'testfrom@test',
-            '-z', 'localhost',
-            f.name,
-        ]
-        options = parse_command_line_options(cmd_options)
-        keywords, email_count = parse_parameter_file(options)
-    assert keywords == expected_keywords
-
-def test_local_sending():
-    parameter_string = '$EMAIL$;$NAME$;$VALUE$\ntestrecv@test.org;TestName;531'
-    email_body = 'Dear $NAME$,\nthis is a test: $VALUE$\nBest regards'
-    email_to = 'testrecv@test.org'
-    email_from = 'testfrom@test.org'
-    email_subject = 'Test Subject'
-    email_encoding = 'utf-8'
-
-    expected_email = email.mime.text.MIMEText('Dear TestName,\nthis is a test: 531\nBest regards'.encode(email_encoding), 'plain', email_encoding)
-    expected_email['To'] = email_to
-    expected_email['From'] = email_from
-    expected_email['Subject'] = email.header.Header(email_subject.encode(email_encoding), email_encoding)
-
-    with tempfile.NamedTemporaryFile('wt') as f:
-        f.write(parameter_string)
-        f.flush()
-        cmd_options = [
-            '-F', email_from,
-            '-S', email_subject,
-            '-z', 'localhost',
-            '-e', email_encoding,
-            f.name
-        ]
-        options = parse_command_line_options(cmd_options)
-        keywords, email_count = parse_parameter_file(options)
-        msgs = create_email_bodies(options, keywords, email_count, email_body)
-        add_email_headers(options, msgs)
-        assert msgs['testrecv@test.org'].as_string() == expected_email.as_string()
-
-@contextlib.contextmanager
-def replace_stdin(text):
-    input = io.StringIO(text)
-    old = sys.stdin
-    sys.stdin, old = input, sys.stdin
-    try:
-        yield
-    finally:
-        sys.stdin = old
-
-@contextlib.contextmanager
-def fake_smtp_server(address):
-    devnull = open(os.devnull, 'w')
-    server = subprocess.Popen(['python2',
-                               '-m', 'smtpd',
-                               '-n',
-                               '-d',
-                               '-c', 'DebuggingServer',
-                               address],
-                              stdin=devnull,
-                              stdout=devnull,
-                              stderr=subprocess.PIPE)
-    try:
-        time.sleep(1)
-        yield server
-    finally:
-        server.terminate()
-
-def test_fake_sending():
-    address = 'localhost:1025'
-    with tempfile.NamedTemporaryFile('wt') as f:
-        f.write('$EMAIL$;$VALUE$\ntestrecv@test;this is a test')
-        f.flush()
-
-        with fake_smtp_server(address) as server:
-            with replace_stdin('EMAIL=$EMAIL$\nVALUE=$VALUE$'):
-                main(['-F', 'fake@foobar.com',
-                      '-z', address,
-                      f.name])
-
-    output = server.stderr.read()
-    assert b'MAIL FROM:<fake@foobar.com>' in output
-    assert b'RCPT TO:<testrecv@test>' in output
-
-    encoded = base64.b64encode(b'EMAIL=testrecv@test\nVALUE=this is a test')
-    assert encoded in output
 
 if __name__ == '__main__':
     main(sys.argv[1:])
