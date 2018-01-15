@@ -65,7 +65,7 @@ Options:
 
   -z SERVER         the SMTP server to use. This argument is required
 
-  -P PORT           the SMTP port to use.
+  -P PORT           the SMTP port to use. Must be between 1 and 65535.
 
   -u                SMTP user name. If not set, use anonymous SMTP
                     connection
@@ -115,7 +115,12 @@ def error(s):
     sys.exit(-1)
 
 def parse_command_line_options(arguments):
-    # parse options
+    """Parse options.
+
+    Returns a dictionary of options.
+
+    Arguments are checked for validity.
+    """
     try:
         opts, args = getopt.getopt(arguments, "hfs:F:S:B:R:e:u:p:P:z:")
     except getopt.GetoptError as err:
