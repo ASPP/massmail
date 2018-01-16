@@ -1,12 +1,13 @@
 import tempfile
 
-import massmail
+from massmail import massmail
 
 def test_dummy():
     pass
 
 def test_command_help():
     import pytest
+
     with pytest.raises(SystemExit):
         massmail.main(['-h'])
 

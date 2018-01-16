@@ -8,7 +8,7 @@ import subprocess
 import base64
 import tempfile
 
-import massmail
+from massmail import massmail
 
 @contextlib.contextmanager
 def replace_stdin(text):

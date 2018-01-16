@@ -1,1 +1,1 @@
-import massmail
+from . import massmail
