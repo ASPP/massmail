@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 
-import massmail
+import os, sys
+
+lib_path = os.path.abspath(os.path.join(os.path.split(__file__)[0],'..'))
+
+sys.path.append(lib_path)
+
+from massmail import massmail
 
 if __name__ == '__main__':
     massmail.main(sys.argv[1:])
