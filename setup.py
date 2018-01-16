@@ -112,7 +112,7 @@ setup(
     # the `py_modules` argument instead as follows, which will expect a file
     # called `my_module.py` to exist:
     #
-    py_modules=["massmail"],
+    #py_modules=["massmail"],
     #
     # packages=find_packages(exclude=['contrib', 'docs', 'tests']),  # Required
 
