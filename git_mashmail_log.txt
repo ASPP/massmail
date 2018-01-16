@@ -1,0 +1,130 @@
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/hello-world$ 
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/hello-world$ cd ..
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice$ git clone https://github.com/jonipham/massmail 
+Cloning into 'massmail'...
+remote: Counting objects: 55, done.
+remote: Total 55 (delta 0), reused 0 (delta 0), pack-reused 55
+Unpacking objects: 100% (55/55), done.
+Checking connectivity... done.
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice$ ls
+hello-world  massmail
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice$ cd massmail/
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ git status
+On branch master
+Your branch is up-to-date with 'origin/master'.
+nothing to commit, working directory clean
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ git remote -v
+origin	https://github.com/jonipham/massmail (fetch)
+origin	https://github.com/jonipham/massmail (push)
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ git checkout -b fix-return-code
+Switched to a new branch 'fix-return-code'
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ gedit massmail &
+[1] 23577
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ 
+[1]+  Done                    gedit massmail
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ 
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ 
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ ./massmail -h
+massmail: Send mass mail
+Usage:
+  massmail [...] PARAMETER_FILE < BODY
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ 
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ 
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ 
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ 
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ 
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ ls
+massmail  test_massmail.py
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ python test_massmail.py 
+test_massmail.py: You must specify a parameter file
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ python test_massmail.py -h
+test_massmail.py: Send mass mail
+Usage:
+  test_massmail.py [...] PARAMETER_FILE < BODY
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ 
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ 
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ 
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ 
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ git add massmail 
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ git commit -m "add print(USAGE)"
+[fix-return-code f96c5f6] add print(USAGE)
+ 1 file changed, 1 insertion(+)
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ git push 
+warning: push.default is unset; its implicit value has changed in
+Git 2.0 from 'matching' to 'simple'. To squelch this message
+and maintain the traditional behavior, use:
+
+  git config --global push.default matching
+
+To squelch this message and adopt the new behavior now, use:
+
+  git config --global push.default simple
+
+When push.default is set to 'matching', git will push local branches
+to the remote branches that already exist with the same name.
+
+Since Git 2.0, Git defaults to the more conservative 'simple'
+behavior, which only pushes the current branch to the corresponding
+remote branch that 'git pull' uses to update the current branch.
+
+See 'git help config' and search for 'push.default' for further information.
+(the 'simple' mode was introduced in Git 1.7.11. Use the similar mode
+'current' instead of 'simple' if you sometimes use older versions of Git)
+
+fatal: The current branch fix-return-code has no upstream branch.
+To push the current branch and set the remote as upstream, use
+
+    git push --set-upstream origin fix-return-code
+
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ 
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ 
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ git push -n
+warning: push.default is unset; its implicit value has changed in
+Git 2.0 from 'matching' to 'simple'. To squelch this message
+and maintain the traditional behavior, use:
+
+  git config --global push.default matching
+
+To squelch this message and adopt the new behavior now, use:
+
+  git config --global push.default simple
+
+When push.default is set to 'matching', git will push local branches
+to the remote branches that already exist with the same name.
+
+Since Git 2.0, Git defaults to the more conservative 'simple'
+behavior, which only pushes the current branch to the corresponding
+remote branch that 'git pull' uses to update the current branch.
+
+See 'git help config' and search for 'push.default' for further information.
+(the 'simple' mode was introduced in Git 1.7.11. Use the similar mode
+'current' instead of 'simple' if you sometimes use older versions of Git)
+
+fatal: The current branch fix-return-code has no upstream branch.
+To push the current branch and set the remote as upstream, use
+
+    git push --set-upstream origin fix-return-code
+
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ 
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ 
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ git push origin fix-return-code
+Username for 'https://github.com': jonipham
+Password for 'https://jonipham@github.com': 
+Counting objects: 3, done.
+Delta compression using up to 4 threads.
+Compressing objects: 100% (3/3), done.
+Writing objects: 100% (3/3), 370 bytes | 0 bytes/s, done.
+Total 3 (delta 1), reused 0 (delta 0)
+remote: Resolving deltas: 100% (1/1), completed with 1 local object.
+To https://github.com/jonipham/massmail
+ * [new branch]      fix-return-code -> fix-return-code
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ git push -v origin master
+Pushing to https://github.com/jonipham/massmail
+Username for 'https://github.com': jonipham
+Password for 'https://jonipham@github.com': 
+To https://github.com/jonipham/massmail
+ = [up to date]      master -> master
+updating local tracking ref 'refs/remotes/origin/master'
+Everything up-to-date
+lhpham@student.unimelb.edu.au@6400l-134147-l:~/Documents/git-practice/massmail$ 
+
