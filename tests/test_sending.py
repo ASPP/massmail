@@ -8,6 +8,9 @@ import subprocess
 import base64
 import tempfile
 
+lib_path = os.path.abspath(os.path.join(os.path.split(__file__)[0],'..'))
+sys.path.append(lib_path)
+
 from massmail import massmail
 
 @contextlib.contextmanager
