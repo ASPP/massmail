@@ -109,9 +109,9 @@ setup(
     # the `py_modules` argument instead as follows, which will expect a file
     # called `my_module.py` to exist:
     #
-    #   py_modules=["massmail"],
+    py_modules=["massmail"],
     #
-    packages=find_packages(exclude=['contrib', 'docs', 'tests']),  # Required
+    #packages=find_packages(exclude=['contrib', 'docs', 'tests']),  # Required
 
     # This field lists other packages that your project depends on to run.
     # Any package you put here will be installed by pip when your project is
@@ -157,10 +157,10 @@ setup(
     #
     # For example, the following would provide a command called `sample` which
     # executes the function `main` from this package when invoked:
-    #entry_points={  # Optional
-    #    'console_scripts': [
-    #        'sample=sample:main',
-    #    ],
-    #},
+    entry_points={  # Optional
+        'console_scripts': [
+            'massmail=massmail:main',
+        ],
+    },
 )
 
