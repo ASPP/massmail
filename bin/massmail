@@ -1,0 +1,6 @@
+#!/usr/bin/env python
+
+import massmail
+
+if __name__ == '__main__':
+    massmail.main(sys.argv[1:])
