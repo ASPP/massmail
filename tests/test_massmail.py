@@ -1,12 +1,18 @@
 import tempfile
+import os, sys
 
-import massmail
+lib_path = os.path.abspath(os.path.join(os.path.split(__file__)[0],'..'))
+
+sys.path.append(lib_path)
+
+from massmail import massmail
 
 def test_dummy():
     pass
 
 def test_command_help():
     import pytest
+
     with pytest.raises(SystemExit):
         massmail.main(['-h'])
 
