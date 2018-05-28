@@ -210,7 +210,7 @@ def parse_parameter_file(options):
     # check that all keywords start and finish with a '$' character
     for key in keywords_list:
         if not key.startswith('$') or not key.endswith('$'):
-            error(('Keyword "%s" malformed: should be $KEYWORD$'%key).encode(options['encoding']))
+            error('Keyword "%s" malformed: should be $KEYWORD$'%key)
 
     # gather all values
     email_count = 0
