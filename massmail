@@ -40,6 +40,7 @@ Usage:
   %s [...] PARAMETER_FILE < BODY
 
 Options:
+  -d                deliver emails
   -F FROM           set the From: header for all messages.
                     Must be ASCII. This argument is required
 
@@ -57,11 +58,6 @@ Options:
                     encoding, default: "UTF-8". Note that if you fuck
                     up this one, your email will be full of rubbish:
                     You have been warned!
-
-  -f                fake run: don't really send emails, just print to
-                    standard output what would be done. Don't be scared
-                    if you can not read the body: it is base64 encoded
-                    UTF8 text
 
   -z SERVER         the SMTP server to use. This argument is required
 
@@ -129,7 +125,7 @@ def parse_command_line_options(arguments):
     # set default options
     options = {
         'sep': u';',
-        'fake': False,
+        'fake': True,
         'from': '',
         'subject': '',
         'bcc': '',
@@ -157,8 +153,8 @@ def parse_command_line_options(arguments):
         elif option == "-h":
             print(USAGE)
             exit(0)
-        elif option == "-f":
-            options['fake'] = True
+        elif option == "-d":
+            options['fake'] = False
         elif option == "-u":
             options['smtpuser'] = value
         elif option == "-p":
