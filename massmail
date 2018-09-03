@@ -58,10 +58,8 @@ Options:
                     up this one, your email will be full of rubbish:
                     You have been warned!
 
-  -f                fake run: don't really send emails, just print to
-                    standard output what would be done. Don't be scared
-                    if you can not read the body: it is base64 encoded
-                    UTF8 text
+  -m SEND mail      Sends email message. WIthout this option the message is
+                    only printed to the standard output.
 
   -z SERVER         the SMTP server to use. This argument is required
 
@@ -129,7 +127,7 @@ def parse_command_line_options(arguments):
     # set default options
     options = {
         'sep': u';',
-        'fake': False,
+        'sendmail':False,
         'from': '',
         'subject': '',
         'bcc': '',
@@ -157,8 +155,8 @@ def parse_command_line_options(arguments):
         elif option == "-h":
             print(USAGE)
             exit(0)
-        elif option == "-f":
-            options['fake'] = True
+        elif option == "-m":
+            options['sendmail'] = True
         elif option == "-u":
             options['smtpuser'] = value
         elif option == "-p":
@@ -174,8 +172,8 @@ def parse_command_line_options(arguments):
     if len(options['from']) == 0:
         error('You must set a from address with option -F')
 
-    if options['server'] is None and not options['fake']:
-        error('You must set a SMTP server with option -z')
+    if options['server'] is None and options['sendmail']:
+            error('You must set a SMTP server with option -z')
 
     if options['sep'] == ",":
         error('Separator can not be a comma')
@@ -260,10 +258,10 @@ def add_email_headers(options, msgs):
     return None
 
 def send_messages(options, msgs):
-    if not options['fake']:
+    if options['sendmail']:
         server = smtplib.SMTP(options['server'], port=options['port'])
 
-    if options['smtpuser'] is not None and not options['fake']:
+    if options['smtpuser'] is not None and options['sendmail']:
         server.starttls()
         server.login(options['smtpuser'], options['smtppassword'])
 
@@ -272,7 +270,7 @@ def send_messages(options, msgs):
         emails = [e.strip() for e in emailaddr.split(',')]
         if len(options['bcc']) > 0:
             emails.append(options['bcc'])
-        if options['fake']:
+        if not options['sendmail']:
             print(msgs[emailaddr].as_string())
         else:
             try:
@@ -283,7 +281,7 @@ def send_messages(options, msgs):
             if len(out) != 0:
                 error(str(out))
 
-    if not options['fake']:
+    if options['sendmail']:
         server.close()
 
 def main(arguments):
