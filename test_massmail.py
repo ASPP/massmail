@@ -18,6 +18,7 @@ def test_parse_parameter_file():
         cmd_options = [
             '-F', 'testfrom@test',
             '-z', 'localhost',
+            '-m',
             f.name,
         ]
         options = massmail.parse_command_line_options(cmd_options)
