@@ -221,8 +221,8 @@ def parse_parameter_file(options):
             continue
         values = [key.strip() for key in line.split(options['sep'])]
         if len(values) != len(keywords_list):
-            error(('Line {0d} in "{1s}" malformed: {2d} values found instead of'
-                   ' {3d}: {4s}'.format(count+1,options['fn_parameters'],len(values),len(keywords_list),line)).encode(options['encoding'])))
+            error(('Line {:0d} in "{:1s}" malformed: {:2d} values found instead of'
+                   ' {:3d}: {:4s}'.format(count+1,options['fn_parameters'],len(values),len(keywords_list),line)).encode(options['encoding']))
         for i, key in enumerate(keywords_list):
             keywords[key].append(values[i])
         email_count += 1
