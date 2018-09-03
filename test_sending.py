@@ -67,7 +67,7 @@ def test_local_sending():
         massmail.add_email_headers(options, msgs)
         assert msgs['testrecv@test.org'].as_string() == expected_email.as_string()
 
-def test_fake_sending():
+def test_sending_fake_address():
     address = 'localhost:1025'
     with tempfile.NamedTemporaryFile('wt') as f:
         f.write('$EMAIL$;$VALUE$\ntestrecv@test;this is a test')
@@ -75,7 +75,7 @@ def test_fake_sending():
 
         with fake_smtp_server(address) as server:
             with replace_stdin('EMAIL=$EMAIL$\nVALUE=$VALUE$'):
-                massmail.main(['-F', 'fake@foobar.com',
+                massmail.main(['-F', 'fake@foobar.com', '-s',
                                '-z', address,
                                f.name])
 
