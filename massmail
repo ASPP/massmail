@@ -53,11 +53,6 @@ Options:
   -s SEPARATOR      set field separator in parameter file,
                     default: ";"
 
-  -e ENCODING       set PARAMETER_FILE *and* BODY character set
-                    encoding, default: "UTF-8". Note that if you fuck
-                    up this one, your email will be full of rubbish:
-                    You have been warned!
-
   -f                fake run: don't really send emails, just print to
                     standard output what would be done. Don't be scared
                     if you can not read the body: it is base64 encoded
