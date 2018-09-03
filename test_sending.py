@@ -58,7 +58,7 @@ def test_local_sending():
             '-F', email_from,
             '-S', email_subject,
             '-z', 'localhost',
-            '-e', email_encoding,
+            # '-e', email_encoding,
             f.name
         ]
         options = massmail.parse_command_line_options(cmd_options)
