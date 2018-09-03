@@ -269,8 +269,8 @@ def send_messages(options, msgs):
             print(msgs[emailaddr].as_string())
         else:
             try:
-                if options['smtpuser'] is not None:
-                    with smtplib.SMTP(options['server'], port=options['port']) as smtp_server:
+                with smtplib.SMTP(options['server'], port=options['port']) as smtp_server:
+                    if options['smtpuser'] is not None:
                         smtp_server.starttls()
                         smtp_server.login(options['smtpuser'], options['smtppassword'])
 
