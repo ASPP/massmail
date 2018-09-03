@@ -70,7 +70,7 @@ def test_local_sending():
 def test_fake_sending():
     address = 'localhost:1025'
     with tempfile.NamedTemporaryFile('wt') as f:
-        f.write('$EMAIL$;$VALUE$\ntestrecv@test;this is a test')
+        f.write('$EMAIL$;$VALUE$\ntestrecv@test.com;this is a test')
         f.flush()
 
         with fake_smtp_server(address) as server:
@@ -81,7 +81,7 @@ def test_fake_sending():
 
     output = server.stderr.read()
     assert b'MAIL FROM:<fake@foobar.com>' in output
-    assert b'RCPT TO:<testrecv@test>' in output
+    assert b'RCPT TO:<testrecv@test.com>' in output
 
-    encoded = base64.b64encode(b'EMAIL=testrecv@test\nVALUE=this is a test')
+    encoded = base64.b64encode(b'EMAIL=testrecv@test.com\nVALUE=this is a test')
     assert encoded in output
