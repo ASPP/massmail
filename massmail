@@ -96,7 +96,7 @@ Anne; Joyce; a@girls.com
 
 Dear $NAME$ $SURNAME$,
 
-I think you are a great guy/girl!
+I think you are a great guy/girl!https://git-scm.com/docs/git-branch
 
 Cheers,
 
@@ -273,7 +273,8 @@ def send_messages(options, msgs):
         if len(options['bcc']) > 0:
             emails.append(options['bcc'])
         if options['fake']:
-            print(msgs[emailaddr].as_string())
+            print('OUR encoding', options['encoding'], msgs.values(), msgs[emailaddr].as_string())
+            print(msgs[emailaddr].as_string().encode(options['encoding']))
         else:
             try:
                 out = server.sendmail(options['from'], emails, msgs[emailaddr].as_string())
