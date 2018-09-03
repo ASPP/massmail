@@ -229,6 +229,15 @@ def parse_parameter_file(options):
 
     return keywords, email_count
 
+# check the email address for validity
+
+def check_email_validity(addressToVerify):
+    match = re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', addressToVerify)
+
+    if match == None:
+	       print('Bad Syntax')
+	       raise ValueError('Bad Syntax')
+
 def create_email_bodies(options, keywords, email_count, body):
     # find keywords and substitute with values
     # we need to create email_count bodies
@@ -248,6 +257,7 @@ def add_email_headers(options, msgs):
     # we need to add the headers
 
     for emailaddr in msgs:
+        check_email_validity(str(emailaddr))
         msg = msgs[emailaddr]
         msg['To'] = str(emailaddr)
         msg['From'] = email.header.Header(options['from'])
