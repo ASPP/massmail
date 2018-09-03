@@ -295,3 +295,10 @@ def main(arguments):
 
 if __name__ == '__main__':
     main(sys.argv[1:])
+
+def check_mail_syntax(email):
+    match = re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', email)
+
+    if match == None:
+    	print('Bad Syntax')
+    	raise ValueError('Bad Syntax')
