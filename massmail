@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+    #!/usr/bin/env python
 # Script to send mass email
 #
 # Copyright (C) 2003-2017 Tiziano Zito <opossumnano@gmail.com>, Jakob Jordan <jakobjordan@posteo.de>
@@ -190,9 +190,8 @@ def parse_command_line_options(arguments):
     return options
 
 def parse_parameter_file(options):
-    pars_fh = open(options['fn_parameters'])
-    pars = pars_fh.read()
-    pars_fh.close()
+    with  open(options['fn_parameters']) as pars_fh:
+        pars = pars_fh.read()
 
     if options['in_reply_to'] and not options['in_reply_to'].startswith('<'):
         options['in_reply_to'] = '<{}>'.format(options['in_reply_to'])
