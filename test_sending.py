@@ -75,8 +75,8 @@ def test_sending_fake_address():
 
         with fake_smtp_server(address) as server:
             with replace_stdin('EMAIL=$EMAIL$\nVALUE=$VALUE$'):
-                massmail.main(['-F', 'fake@foobar.com', '-s',
-                               '-z', address,
+                massmail.main(['-F', 'fake@foobar.com',
+                               '-z', address, '-s', True,
                                f.name])
 
     output = server.stderr.read()
