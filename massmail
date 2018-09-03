@@ -260,13 +260,6 @@ def add_email_headers(options, msgs):
     return None
 
 def send_messages(options, msgs):
-    if not options['fake']:
-        server = smtplib.SMTP(options['server'], port=options['port'])
-
-    if options['smtpuser'] is not None and not options['fake']:
-        server.starttls()
-        server.login(options['smtpuser'], options['smtppassword'])
-
     for emailaddr in msgs:
         print('Sending email to:', emailaddr)
         emails = [e.strip() for e in emailaddr.split(',')]
@@ -276,15 +269,17 @@ def send_messages(options, msgs):
             print(msgs[emailaddr].as_string())
         else:
             try:
-                out = server.sendmail(options['from'], emails, msgs[emailaddr].as_string())
+                if options['smtpuser'] is not None:
+                    with smtplib.SMTP(options['server'], port=options['port']) as smtp_server:
+                        smtp_server.starttls()
+                        smtp_server.login(options['smtpuser'], options['smtppassword'])
+                        out = smtp_server.sendmail(options['from'], emails, msgs[emailaddr].as_string())
+
             except Exception as err:
                 error(str(err))
 
             if len(out) != 0:
                 error(str(out))
-
-    if not options['fake']:
-        server.close()
 
 def main(arguments):
     options = parse_command_line_options(arguments)
