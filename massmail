@@ -122,7 +122,9 @@ def parse_command_line_options(arguments):
     Arguments are checked for validity.
     """
     try:
-        opts, args = getopt.getopt(arguments, "hfs:F:S:B:R:e:u:p:P:z:")
+        opts, args = getopt.getopt(arguments, "hfs:F:S:B:R:u:p:P:z:")
+        # opts, args = getopt.getopt(arguments, "hfs:F:S:B:R:e:u:p:P:z:")
+
     except getopt.GetoptError as err:
         error(str(err)+USAGE)
 
@@ -142,8 +144,8 @@ def parse_command_line_options(arguments):
     }
 
     for option, value in opts:
-        if option == "-e":
-            options['encoding'] = value
+        # if option == "-e":
+        #     options['encoding'] = value
         if option == "-s":
             options['sep'] = value
         elif option == "-F":
