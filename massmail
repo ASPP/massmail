@@ -273,7 +273,8 @@ def send_messages(options, msgs):
                     with smtplib.SMTP(options['server'], port=options['port']) as smtp_server:
                         smtp_server.starttls()
                         smtp_server.login(options['smtpuser'], options['smtppassword'])
-                        out = smtp_server.sendmail(options['from'], emails, msgs[emailaddr].as_string())
+
+                out = smtp_server.sendmail(options['from'], emails, msgs[emailaddr].as_string())
 
             except Exception as err:
                 error(str(err))
