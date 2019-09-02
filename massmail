@@ -115,7 +115,7 @@ def error(s):
     sys.stderr.write(PROGNAME+': ')
     sys.stderr.write(s+'\n')
     sys.stderr.flush()
-    sys.exit(-1)
+    sys.exit(1)
 
 def parse_command_line_options(arguments):
     """Parse options.
