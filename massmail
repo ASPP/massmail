@@ -48,6 +48,9 @@ Options:
   -B BCC            set the Bcc: header for all messages.
                     Must be ASCII
 
+  -C CC             set the Cc: header for all messages.
+                    Must be ASCII
+
   -R In-Reply-To    set the In-Reply-To: takes a Message-ID as input
 
   -s SEPARATOR      set field separator in parameter file,
@@ -122,7 +125,7 @@ def parse_command_line_options(arguments):
     Arguments are checked for validity.
     """
     try:
-        opts, args = getopt.getopt(arguments, "hfs:F:S:B:R:e:u:p:P:z:")
+        opts, args = getopt.getopt(arguments, "hfs:F:S:B:C:R:e:u:p:P:z:")
     except getopt.GetoptError as err:
         error(str(err)+USAGE)
 
@@ -133,6 +136,7 @@ def parse_command_line_options(arguments):
         'from': '',
         'subject': '',
         'bcc': '',
+        'cc': '',
         'encoding': 'utf-8',
         'smtpuser': None,
         'smtppassword': None,
@@ -152,6 +156,8 @@ def parse_command_line_options(arguments):
             options['subject'] = value
         elif option == "-B":
             options['bcc'] = value
+        elif option == "-C":
+            options['cc'] = value
         elif option == "-R":
             options['in_reply_to'] = value
         elif option == "-h":
@@ -255,6 +261,8 @@ def add_email_headers(options, msgs):
             msg['Subject'] = email.header.Header(options['subject'].encode(options['encoding']), options['encoding'])
         if options['in_reply_to']:
             msg['In-Reply-To'] = email.header.Header(options['in_reply_to'])
+        if options['cc']:
+            msg['Cc'] = email.header.Header(options['cc'])
         msgs[emailaddr] = msg
 
     return None
