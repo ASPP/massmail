@@ -56,10 +56,10 @@ Options:
   -s SEPARATOR      set field separator in parameter file,
                     default: ";"
 
-  -e ENCODING       set PARAMETER_FILE *and* BODY character set
-                    encoding, default: "UTF-8". Note that if you fuck
-                    up this one, your email will be full of rubbish:
-                    You have been warned!
+ # -e ENCODING       set PARAMETER_FILE *and* BODY character set
+ #                   encoding, default: "UTF-8". Note that if you fuck
+ #                   up this one, your email will be full of rubbish:
+ #                   You have been warned!
 
   -f                fake run: don't really send emails, just print to
                     standard output what would be done. Don't be scared
@@ -137,7 +137,7 @@ def parse_command_line_options(arguments):
         'subject': '',
         'bcc': '',
         'cc': '',
-        'encoding': 'utf-8',
+        #'encoding': 'utf-8',
         'smtpuser': None,
         'smtppassword': None,
         'server': None,
@@ -146,8 +146,8 @@ def parse_command_line_options(arguments):
     }
 
     for option, value in opts:
-        if option == "-e":
-            options['encoding'] = value
+ #       if option == "-e":
+ #           options['encoding'] = value
         if option == "-s":
             options['sep'] = value
         elif option == "-F":
@@ -228,7 +228,7 @@ def parse_parameter_file(options):
         values = [key.strip() for key in line.split(options['sep'])]
         if len(values) != len(keywords_list):
             error(('Line %d in "%s" malformed: %d values found instead of'
-                   ' %d: %s'%(count+1,options['fn_parameters'],len(values),len(keywords_list),line)).encode(options['encoding']))
+                   ' %d: %s'%(count+1,options['fn_parameters'],len(values),len(keywords_list),line)).encode('UTF-8']))
         for i, key in enumerate(keywords_list):
             keywords[key].append(values[i])
         email_count += 1
@@ -244,7 +244,7 @@ def create_email_bodies(options, keywords, email_count, body):
         lbody = re.sub(r'\$\w+\$', lambda m: keywords[m.group(0)][i], body)
 
         # encode body
-        lbody = email.mime.text.MIMEText(lbody.encode(options['encoding']), 'plain', options['encoding'])
+        lbody = email.mime.text.MIMEText(lbody.encode('UTF-8'), 'plain', 'UTF-8')
         msgs[keywords['$EMAIL$'][i]] = lbody
 
     return msgs
@@ -258,7 +258,7 @@ def add_email_headers(options, msgs):
         msg['To'] = str(emailaddr)
         msg['From'] = email.header.Header(options['from'])
         if options['subject']:
-            msg['Subject'] = email.header.Header(options['subject'].encode(options['encoding']), options['encoding'])
+            msg['Subject'] = email.header.Header(options['subject'].encode('UTF-8'), 'UTF-8'])
         if options['in_reply_to']:
             msg['In-Reply-To'] = email.header.Header(options['in_reply_to'])
         if options['cc']:
