@@ -281,7 +281,9 @@ def send_messages(options, msgs):
         if len(options['bcc']) > 0:
             emails.append(options['bcc'])
         if options['fake']:
-            print(msgs[emailaddr].as_string())
+            [print(hdr+':', value) for hdr, value in msgs[emailaddr].items()]
+            print()
+            print(msgs[emailaddr].get_payload(decode=True).decode(options['encoding']))
         else:
             try:
                 out = server.sendmail(options['from'], emails, msgs[emailaddr].as_string())
