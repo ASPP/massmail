@@ -61,11 +61,6 @@ Options:
                     up this one, your email will be full of rubbish:
                     You have been warned!
 
-  -f                fake run: don't really send emails, just print to
-                    standard output what would be done. Don't be scared
-                    if you can not read the body: it is base64 encoded
-                    UTF8 text
-
   -z SERVER         the SMTP server to use. This argument is required
 
   -P PORT           the SMTP port to use. Must be between 1 and 65535.
@@ -125,14 +120,13 @@ def parse_command_line_options(arguments):
     Arguments are checked for validity.
     """
     try:
-        opts, args = getopt.getopt(arguments, "hfs:F:S:B:C:R:e:u:p:P:z:")
+        opts, args = getopt.getopt(arguments, "hs:F:S:B:C:R:e:u:p:P:z:")
     except getopt.GetoptError as err:
         error(str(err)+USAGE)
 
     # set default options
     options = {
         'sep': u';',
-        'fake': False,
         'from': '',
         'subject': '',
         'bcc': '',
@@ -163,8 +157,6 @@ def parse_command_line_options(arguments):
         elif option == "-h":
             print(USAGE)
             exit(0)
-        elif option == "-f":
-            options['fake'] = True
         elif option == "-u":
             options['smtpuser'] = value
         elif option == "-p":
@@ -180,15 +172,11 @@ def parse_command_line_options(arguments):
     if len(options['from']) == 0:
         error('You must set a from address with option -F')
 
-    if options['server'] is None and not options['fake']:
+    if options['server'] is None:
         error('You must set a SMTP server with option -z')
 
     if options['sep'] == ",":
         error('Separator can not be a comma')
-
-    # get password if needed
-    if options['smtpuser'] is not None and options['smtppassword'] is None:
-        options['smtppassword'] = getpass.getpass('Enter password for %s: '%options['smtpuser'])
 
     # set filenames of parameter and mail body
     options['fn_parameters'] = args[0]
@@ -268,33 +256,53 @@ def add_email_headers(options, msgs):
     return None
 
 def send_messages(options, msgs):
-    if not options['fake']:
-        server = smtplib.SMTP(options['server'], port=options['port'])
 
-    if options['smtpuser'] is not None and not options['fake']:
-        server.starttls()
-        server.login(options['smtpuser'], options['smtppassword'])
+    for emailaddr in msgs:
+        print('This email will be sent to:', emailaddr)
+        emails = [e.strip() for e in emailaddr.split(',')]
+        if len(options['bcc']) > 0:
+            emails.append(options['bcc'])
+        [print(hdr+':', value) for hdr, value in msgs[emailaddr].items()]
+        print()
+        print(msgs[emailaddr].get_payload(decode=True).decode(options['encoding']))
+
+    # ask for confirmation before really sending stuff
+    # we need to read input from the terminal, because stdin is taken already
+    sys.stdin = open('/dev/tty')
+    ans = input('Send the emails above? Type "Y" to confirm! ')
+    if ans != 'Y':
+        error('OK, exiting without sending anything!')
+
+    print()
+
+    server = smtplib.SMTP(options['server'], port=options['port'])
+
+    if options['smtpuser'] is not None:
+        try:
+            server.starttls()
+            # get password if needed
+            if  options['smtppassword'] is None:
+                options['smtppassword'] = getpass.getpass('Enter password for %s: '%options['smtpuser'])
+            server.login(options['smtpuser'], options['smtppassword'])
+        except Exception as err:
+            error(str(err))
+
+    print()
 
     for emailaddr in msgs:
         print('Sending email to:', emailaddr)
         emails = [e.strip() for e in emailaddr.split(',')]
         if len(options['bcc']) > 0:
             emails.append(options['bcc'])
-        if options['fake']:
-            [print(hdr+':', value) for hdr, value in msgs[emailaddr].items()]
-            print()
-            print(msgs[emailaddr].get_payload(decode=True).decode(options['encoding']))
-        else:
-            try:
-                out = server.sendmail(options['from'], emails, msgs[emailaddr].as_string())
-            except Exception as err:
-                error(str(err))
+        try:
+            out = server.sendmail(options['from'], emails, msgs[emailaddr].as_string())
+        except Exception as err:
+            error(str(err))
 
-            if len(out) != 0:
-                error(str(out))
+        if len(out) != 0:
+            error(str(out))
 
-    if not options['fake']:
-        server.close()
+    server.close()
 
 def main(arguments):
     options = parse_command_line_options(arguments)
