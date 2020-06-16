@@ -258,10 +258,10 @@ def add_email_headers(options, msgs):
 def send_messages(options, msgs):
 
     for emailaddr in msgs:
-        print('This email will be sent to:', emailaddr)
         emails = [e.strip() for e in emailaddr.split(',')]
         if len(options['bcc']) > 0:
             emails.append(options['bcc'])
+        print('This email will be sent to:', ', '.join(emails))
         [print(hdr+':', value) for hdr, value in msgs[emailaddr].items()]
         print()
         print(msgs[emailaddr].get_payload(decode=True).decode(options['encoding']))
