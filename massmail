@@ -26,7 +26,9 @@
 import smtplib, getopt, sys, os, email, getpass
 import email.header
 import email.mime.text
+import email.utils
 import io
+import hashlib
 import contextlib
 import tempfile
 import time
@@ -251,9 +253,17 @@ def add_email_headers(options, msgs):
             msg['In-Reply-To'] = email.header.Header(options['in_reply_to'])
         if options['cc']:
             msg['Cc'] = email.header.Header(options['cc'])
+        # add a unique message-id
+        msg['Message-ID'] = email.header.Header(generate_unique_id(msg))
         msgs[emailaddr] = msg
 
     return None
+
+def generate_unique_id(msg):
+    # Get headers and body in the message, hash it and convert to base64
+    prefix = hashlib.sha256(msg.get_payload(decode=True)).hexdigest()[:16]
+    message_id = email.utils.make_msgid(idstring=prefix)
+    return message_id
 
 def send_messages(options, msgs):
 
