@@ -36,6 +36,9 @@ import subprocess
 import base64
 import re
 
+def function_one():
+    pass
+
 PROGNAME = os.path.basename(sys.argv[0])
 USAGE = """Send mass mail
 Usage:
