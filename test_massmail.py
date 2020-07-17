@@ -5,6 +5,9 @@ import massmail
 def test_dummy():
     pass
 
+def fraeri_test():
+    pass
+
 def test_command_help():
     import pytest
     with pytest.raises(SystemExit):
