@@ -68,7 +68,7 @@ def test_local_sending():
         assert msgs['testrecv@test.org'].as_string() == expected_email.as_string()
 
 def test_fake_sending():
-    address = 'localhost:1025'
+    address = 'localhost:8025'
     with tempfile.NamedTemporaryFile('wt') as f:
         f.write('$EMAIL$;$VALUE$\ntestrecv@test;this is a test')
         f.flush()
