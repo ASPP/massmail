@@ -253,6 +253,8 @@ def add_email_headers(options, msgs):
             msg['In-Reply-To'] = email.header.Header(options['in_reply_to'])
         if options['cc']:
             msg['Cc'] = email.header.Header(options['cc'])
+        # add the required date header
+        msg['Date'] = email.utils.formatdate(localtime=True)
         # add a unique message-id
         msg['Message-ID'] = email.header.Header(generate_unique_id(msg))
         msgs[emailaddr] = msg
