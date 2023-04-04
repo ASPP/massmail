@@ -186,7 +186,7 @@ def parse_command_line_options(arguments):
     return options
 
 def parse_parameter_file(options):
-    pars_fh = open(options['fn_parameters'])
+    pars_fh = open(options['fn_parameters'],'rt')
     pars = pars_fh.read()
     pars_fh.close()
 
