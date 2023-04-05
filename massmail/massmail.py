@@ -122,7 +122,7 @@ def parse_command_line_options(arguments):
     Arguments are checked for validity.
     """
     try:
-        opts, args = getopt.getopt(arguments, "hs:F:S:B:C:R:e:u:p:P:z:")
+        opts, args = getopt.getopt(arguments, "hs:F:S:B:C:R:e:u:p:P:z:f")
     except getopt.GetoptError as err:
         error(str(err)+USAGE)
 
@@ -139,6 +139,7 @@ def parse_command_line_options(arguments):
         'server': None,
         'port': 0,
         'in_reply_to': '',
+        'force': False,
     }
 
     for option, value in opts:
@@ -167,6 +168,8 @@ def parse_command_line_options(arguments):
             options['port'] = int(value)
         elif option == "-z":
             options['server'] = value
+        elif option == '-f':
+            options['force'] = True
 
     if len(args) == 0:
         error('You must specify a parameter file')
@@ -278,14 +281,15 @@ def send_messages(options, msgs):
         print()
         print(msgs[emailaddr].get_payload(decode=True).decode(options['encoding']))
 
-    # ask for confirmation before really sending stuff
-    # we need to read input from the terminal, because stdin is taken already
-    sys.stdin = open('/dev/tty')
-    ans = input('Send the emails above? Type "Y" to confirm! ')
-    if ans != 'Y':
-        error('OK, exiting without sending anything!')
+    if not options['force']:
+        # ask for confirmation before really sending stuff
+        # we need to read input from the terminal, because stdin is taken already
+        sys.stdin = open('/dev/tty')
+        ans = input('Send the emails above? Type "Y" to confirm! ')
+        if ans != 'Y':
+            error('OK, exiting without sending anything!')
 
-    print()
+        print()
 
     server = smtplib.SMTP(options['server'], port=options['port'])
 
