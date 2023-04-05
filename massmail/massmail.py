@@ -316,7 +316,9 @@ def send_messages(options, msgs):
 
     server.close()
 
-def main(arguments):
+def main(arguments=None):
+    if arguments is None:
+        arguments = sys.argv[1:]
     options = parse_command_line_options(arguments)
     keywords, email_count = parse_parameter_file(options)
     msgs = create_email_bodies(options, keywords, email_count, sys.stdin.read())
