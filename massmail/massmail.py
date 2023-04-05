@@ -122,7 +122,7 @@ def parse_command_line_options(arguments):
     Arguments are checked for validity.
     """
     try:
-        opts, args = getopt.getopt(arguments, "hs:F:S:B:C:R:e:u:p:P:z:f")
+        opts, args = getopt.getopt(arguments, "hs:F:S:B:C:R:e:u:p:P:z:ft")
     except getopt.GetoptError as err:
         error(str(err)+USAGE)
 
@@ -140,6 +140,7 @@ def parse_command_line_options(arguments):
         'port': 0,
         'in_reply_to': '',
         'force': False,
+        'tls': True,
     }
 
     for option, value in opts:
@@ -170,6 +171,8 @@ def parse_command_line_options(arguments):
             options['server'] = value
         elif option == '-f':
             options['force'] = True
+        elif option == '-t':
+            options['tls'] = False
 
     if len(args) == 0:
         error('You must specify a parameter file')
@@ -292,10 +295,11 @@ def send_messages(options, msgs):
         print()
 
     server = smtplib.SMTP(options['server'], port=options['port'])
+    if options['tls']:
+        server.starttls()
 
     if options['smtpuser'] is not None:
         try:
-            server.starttls()
             # get password if needed
             if  options['smtppassword'] is None:
                 options['smtppassword'] = getpass.getpass('Enter password for %s: '%options['smtpuser'])
