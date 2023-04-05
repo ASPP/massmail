@@ -1,6 +1,6 @@
 import tempfile
 
-import massmail
+import massmail.massmail as massmail
 
 def test_dummy():
     pass
