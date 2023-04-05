@@ -8,7 +8,7 @@ import subprocess
 import base64
 import tempfile
 
-import massmail
+import massmail.massmail as massmail
 
 @contextlib.contextmanager
 def replace_stdin(text):
@@ -23,8 +23,8 @@ def replace_stdin(text):
 @contextlib.contextmanager
 def fake_smtp_server(address):
     devnull = open(os.devnull, 'w')
-    server = subprocess.Popen(['python2',
-                               '-m', 'smtpd',
+    server = subprocess.Popen(['python',
+                               '-m', 'aiosmtpd',
                                '-n',
                                '-d',
                                '-c', 'DebuggingServer',
@@ -65,7 +65,22 @@ def test_local_sending():
         keywords, email_count = massmail.parse_parameter_file(options)
         msgs = massmail.create_email_bodies(options, keywords, email_count, email_body)
         massmail.add_email_headers(options, msgs)
-        assert msgs['testrecv@test.org'].as_string() == expected_email.as_string()
+        # we should find a Date header and a message-id header in the email
+        # we can't replicate them here, so get rid of them before comparing
+        generated_lines = msgs['testrecv@test.org'].as_string().splitlines()
+        generated = []
+        found_date = False
+        found_messageid = False
+        for line in generated_lines:
+            if line.startswith('Date:'):
+                found_date = True
+            elif line.startswith('Message-ID:'):
+                found_messageid = True
+            else:
+                generated.append(line)
+        assert found_date
+        assert found_messageid
+        assert  generated == expected_email.as_string().splitlines()
 
 def test_fake_sending():
     address = 'localhost:8025'
