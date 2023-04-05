@@ -22,16 +22,17 @@ def replace_stdin(text):
 
 @contextlib.contextmanager
 def fake_smtp_server(address):
-    devnull = open(os.devnull, 'w')
     server = subprocess.Popen(['python',
                                '-m', 'aiosmtpd',
                                '-n',
                                '-d',
-                               '-c', 'DebuggingServer',
-                               address],
-                              stdin=devnull,
-                              stdout=devnull,
-                              stderr=subprocess.PIPE)
+                               '-l',  address,
+                               '-c', 'aiosmtpd.handlers.Debugging', 'stderr'],
+                              stdin=None,
+                              text=False,
+                              stderr=subprocess.PIPE,
+                              stdout=None,
+                              bufsize=0)
     try:
         time.sleep(1)
         yield server
@@ -85,18 +86,17 @@ def test_local_sending():
 def test_fake_sending():
     address = 'localhost:8025'
     with tempfile.NamedTemporaryFile('wt') as f:
-        f.write('$EMAIL$;$VALUE$\ntestrecv@test;this is a test')
+        f.write('$EMAIL$;$VALUE$\ntestrecv@test;this is a test\n')
         f.flush()
-
         with fake_smtp_server(address) as server:
-            with replace_stdin('EMAIL=$EMAIL$\nVALUE=$VALUE$'):
+            with replace_stdin('EMAIL=$EMAIL$\nVALUE=$VALUE$\n'):
                 massmail.main(['-F', 'fake@foobar.com',
-                               '-z', address,
-                               f.name])
+                                '-z', address, '-f', '-t',
+                                f.name])
 
-    output = server.stderr.read()
-    assert b'MAIL FROM:<fake@foobar.com>' in output
-    assert b'RCPT TO:<testrecv@test>' in output
+    stderr = server.stderr.read()
+    assert b'sender: fake@foobar.com' in stderr
+    assert b'recip: testrecv@test' in stderr
 
-    encoded = base64.b64encode(b'EMAIL=testrecv@test\nVALUE=this is a test')
-    assert encoded in output
+    encoded = base64.b64encode(b'EMAIL=testrecv@test\nVALUE=this is a test\n')
+    assert encoded in stderr
