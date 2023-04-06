@@ -22,7 +22,7 @@ def replace_stdin(text):
 
 @contextlib.contextmanager
 def fake_smtp_server(address):
-    server = subprocess.Popen(['python',
+    server = subprocess.Popen([sys.executable,
                                '-m', 'aiosmtpd',
                                '-n',
                                '-d',
