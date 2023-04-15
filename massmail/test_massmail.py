@@ -263,3 +263,34 @@ def test_server_wrong_authentication(server, parm, body):
     assert code != 0
     assert 'Can not login' in output
 
+def test_bcc(server, parm, body):
+    opts = {'--bcc' : 'x@monkeys.com'}
+    protocol, emails = cli(server, parm, body, opts=opts)
+
+    assert len(emails) == 1
+    assert 'sender: gorilla@jungle.com' in protocol
+    assert 'recip: donkeys@jungle.com' in protocol
+    assert 'recip: x@monkeys.com' in protocol
+
+    assert emails[0]['To'] == 'donkeys@jungle.com'
+    assert 'Bcc' not in emails[0]
+
+def test_cc(server, parm, body):
+    opts = {'--cc' : 'Markus Murkis <x@monkeys.com>'}
+    protocol, emails = cli(server, parm, body, opts=opts)
+
+    assert len(emails) == 1
+    assert 'sender: gorilla@jungle.com' in protocol
+    assert 'recip: donkeys@jungle.com' in protocol
+    assert 'recip: x@monkeys.com' in protocol
+
+    assert emails[0]['To'] == 'donkeys@jungle.com'
+    assert emails[0]['Cc'] == 'Markus Murkis <x@monkeys.com>'
+
+def test_in_reply_to(server, parm, body):
+    opts = {'--inreply-to' : '<MessageID>'}
+    protocol, emails = cli(server, parm, body, opts=opts)
+
+    assert len(emails) == 1
+    assert emails[0]['In-Reply-To'] == '<MessageID>'
+
