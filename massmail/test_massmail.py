@@ -1,11 +1,7 @@
-import contextlib
 import email as email_module
-import io
-import sys
-import os
-import time
 import subprocess
-import base64
+import sys
+import time
 
 from massmail.massmail import main as massmail
 import click.testing
