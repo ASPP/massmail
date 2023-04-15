@@ -37,7 +37,7 @@ def parse_parameter_file(parameter_file):
 
     return keys
 
-def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, reply_to):
+def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to):
     msgs = {}
     body_text = body_file.read()
     for i, emails in enumerate(keys['$EMAIL$']):
@@ -48,8 +48,8 @@ def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, reply_to):
         msg['To'] = emails
         msg['From'] = fromh
         msg['Subject'] = subject
-        if reply_to:
-            msg['In-Reply-To'] = reply_to
+        if inreply_to:
+            msg['In-Reply-To'] = inreply_to
         if cc:
             msg['Cc'] = cc
         if bcc:
@@ -110,7 +110,7 @@ def send_messages(msgs, force, server, tls, user, password):
 
     server.quit()
 
-def validate_reply_to(context, param, value):
+def validate_inreply_to(context, param, value):
     if value is None:
         return None
     if not (value.startswith('<') and value.endswith('>')):
@@ -130,14 +130,14 @@ def validate_reply_to(context, param, value):
               help='set the email body file (see above for an example)')
 @click.option('-b', '--bcc', help='set the Bcc: header')
 @click.option('-c', '--cc', help='set the Cc: header')
-@click.option('-r', '--reply-to', callback=validate_reply_to, metavar="<ID>",
+@click.option('-r', '--inreply-to', callback=validate_inreply_to, metavar="<ID>",
               help='set the In-Reply-to: header. Set it to a Message-ID.')
 @click.option('-u', '--user', help='SMTP user name. If not set, use anonymous SMTP connection')
 @click.option('-p', '--password', help='SMTP password. If not set you will be prompted for one')
 @click.option('-f', '--force', is_flag=True, default=False, help='do not ask for confirmation before sending messages (use with care!)')
 @click.option('--tls/--no-tls', default=True, show_default=True,
               help='encrypt SMTP connection with TLS (disable only if you know what you are doing!)')
-def main(fromh, subject, server, parameter_file, body_file, bcc, cc, reply_to,
+def main(fromh, subject, server, parameter_file, body_file, bcc, cc, inreply_to,
          user, password, force, tls):
     """Send mass mail
 
@@ -166,6 +166,6 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, reply_to,
       Keywords from the parameter file (parm.csv) are subsituted in the body text. The keyword $EMAIL$ must always be present in the parameter files and contains a comma separated list of email addresses. Keep in mind shell escaping when setting headers with white spaces or special characters. Both files must be UTF8 encoded!
     """
     keys = parse_parameter_file(parameter_file)
-    msgs = create_email_bodies(body_file, keys, fromh, subject, cc, bcc, reply_to)
+    msgs = create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to)
     send_messages(msgs, force, server, tls, user, password)
 

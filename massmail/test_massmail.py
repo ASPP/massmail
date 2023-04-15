@@ -7,9 +7,6 @@ from massmail.massmail import main as massmail
 import click.testing
 import pytest
 
-
-
-
 # return a locally running SMTP server. This fixture kills the server after the
 # test run is finished, i.e. not after every test!
 # The resulting server runs at localhost:8025
@@ -148,7 +145,6 @@ def test_regular_sending(server, parm, body):
     assert 'Dear Alice Joyce' in text
     assert 'we kindly invite you to join us in the jungle' in text
 
-
 def test_unicode_body_sending(server, parm, body):
     # add some unicode text to the body
     with body.open('at') as bodyf:
@@ -208,3 +204,62 @@ def test_unicode_parm(server, parm, body):
         parmf.write('\nÜni©ödę¿; Smith; j@monkeys.com\n')
     protocol, emails = cli(server, parm, body)
     assert 'Dear Üni©ödę¿ Smith' in emails[1].get_content()
+
+def test_multiple_recipients_in_one_row(server, parm, body):
+    # add some unicode text to the body
+    with parm.open('at') as parmf:
+        parmf.write('\nAnne and Mary; Joyce; a@donkeys.com, m@donkeys.com\n')
+    protocol, emails = cli(server, parm, body)
+    assert len(emails) == 2
+    assert 'sender: gorilla@jungle.com' in protocol
+    assert 'recip: donkeys@jungle.com' in protocol
+    assert 'recip: a@donkeys.com' in protocol
+    assert 'recip: m@donkeys.com' in protocol
+
+    assert emails[0]['To'] == 'donkeys@jungle.com'
+    assert emails[1]['To'] == 'a@donkeys.com, m@donkeys.com'
+    assert 'Dear Alice Joyce' in emails[0].get_content()
+    assert 'Dear Anne and Mary Joyce' in emails[1].get_content()
+
+
+def test_parm_malformed_keys(server, parm, body):
+    parm.write_text("""$NAME;$SURNAME$;$EMAIL$
+                    test;test;test@test.com""")
+    code, output = cli(server, parm, body, errs=True)
+    assert code != 0
+    assert '$NAME' in output
+    assert 'malformed' in output
+    parm.write_text("""$NAME$;SURNAME$;$EMAIL$
+                    test;test;test@test.com""")
+    code, output = cli(server, parm, body, errs=True)
+    assert code != 0
+    assert 'SURNAME$' in output
+    assert 'malformed' in output
+
+def test_missing_email_in_parm(server, parm, body):
+    parm.write_text("""$NAME$;$SURNAME$
+                    test;test""")
+    code, output = cli(server, parm, body, errs=True)
+    assert code != 0
+    assert 'No $EMAIL$' in output
+
+def test_missing_value_in_parm(server, parm, body):
+    with parm.open('at') as parmf:
+        parmf.write('\nMario;Rossi;j@monkeys.com;too much\n')
+    code, output = cli(server, parm, body, errs=True)
+    assert code != 0
+    assert 'Line 2' in output
+    assert '4 found instead of 3' in output
+
+def test_server_offline(server, parm, body):
+    opts = {'--server' : 'noserver:25' }
+    code, output = cli(server, parm, body, opts=opts, errs=True)
+    assert code != 0
+    assert 'Can not connect to' in output
+
+def test_server_wrong_authentication(server, parm, body):
+    opts = {'--user' : 'noone', '--password' : 'nopass' }
+    code, output = cli(server, parm, body, opts=opts, errs=True)
+    assert code != 0
+    assert 'Can not login' in output
+
