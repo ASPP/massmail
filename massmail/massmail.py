@@ -156,12 +156,12 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, reply_to,
      \b
      massmail --from "Blushing Gorilla <gorilla@jungle.com>" --subject "Invitation to the jungle" --server smtp.gmail.com:587 -P parm.csv -B body.txt
 
-    parm.csv:
+    parm.csv (semi-colon separated):
 
      \b
      $NAME$; $SURNAME$; $EMAIL$
      John; Smith; j@monkeys.com
-     Anne; Joyce; a@donkeys.com
+     Anne and Mary; Joyce; a@donkeys.com, m@donkeys.com
 
     body.txt:
 
