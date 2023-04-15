@@ -294,3 +294,9 @@ def test_in_reply_to(server, parm, body):
     assert len(emails) == 1
     assert emails[0]['In-Reply-To'] == '<MessageID>'
 
+def test_invalid_in_reply_to(server, parm, body):
+    opts = {'--inreply-to' : 'abc'}
+    code, output = cli(server, parm, body, opts=opts, errs=True)
+    assert code != 0
+    assert 'Invalid value' in output
+    assert 'brackets' in output
