@@ -62,7 +62,7 @@ def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, reply_to):
 
     return msgs
 
-def send_messages(msgs, force, server, tls, smtpuser, smtppassword):
+def send_messages(msgs, force, server, tls, user, password):
     for emailaddr in msgs:
         emails = [e.strip() for e in emailaddr.split(',')]
         print('This email will be sent to:', ', '.join(emails))
@@ -86,13 +86,13 @@ def send_messages(msgs, force, server, tls, smtpuser, smtppassword):
     if tls:
         server.starttls()
 
-    if smtpuser is not None:
+    if user is not None:
         try:
             # get password if needed
-            if smtppassword is None:
-                smtppassword = click.prompt(f'Enter password for {smtpuser} on {servername}',
+            if password is None:
+                password = click.prompt(f'Enter password for {user} on {servername}',
                                     hide_input=True)
-            server.login(smtpuser, smtppassword)
+            server.login(user, password)
         except Exception as err:
             raise click.ClickException(f'Can not login to {servername}: {err}')
 
@@ -140,15 +140,15 @@ def validate_reply_to(context, param, value):
 @click.option('-c', '--cc', help='set the Cc: header')
 @click.option('-r', '--reply-to', callback=validate_reply_to, metavar="<ID>",
               help='set the In-Reply-to: header. Set it to a Message-ID.')
-@click.option('-u', '--smtpuser', help='SMTP user name. If not set, use anonymous SMTP connection')
-@click.option('-p', '--smtppassword', help='SMTP password. If not set you will be prompted for one')
+@click.option('-u', '--user', help='SMTP user name. If not set, use anonymous SMTP connection')
+@click.option('-p', '--password', help='SMTP password. If not set you will be prompted for one')
 @click.option('-f', '--force', is_flag=True, default=False, help='do not ask for confirmation before sending messages (use with care!)')
 @click.option('--tls/--no-tls', default=True, show_default=True,
               help='encrypt SMTP connection with TLS (disable only if you know what you are doing!)')
 @click.option('--separator', help='set field separator in parameter file [comma "," is not permitted]',
               default=';', show_default=True, callback=validate_separator, metavar="CHAR")
 def main(fromh, subject, server, parameter_file, body_file, bcc, cc, reply_to,
-         smtpuser, smtppassword, force, tls, separator):
+         user, password, force, tls, separator):
     """Send mass mail
 
     Example:
@@ -177,5 +177,5 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, reply_to,
     """
     keys = parse_parameter_file(parameter_file, separator)
     msgs = create_email_bodies(body_file, keys, fromh, subject, cc, bcc, reply_to)
-    send_messages(msgs, force, server, tls, smtpuser, smtppassword)
+    send_messages(msgs, force, server, tls, user, password)
 
