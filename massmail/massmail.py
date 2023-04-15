@@ -68,7 +68,7 @@ def send_messages(msgs, force, server, tls, smtpuser, smtppassword):
         print('This email will be sent to:', ', '.join(emails))
         [print(hdr+':', value) for hdr, value in msgs[emailaddr].items()]
         print()
-        print(msgs[emailaddr].get_payload())
+        print(msgs[emailaddr].get_content())
 
     if not force:
         # ask for confirmation before really sending stuff
