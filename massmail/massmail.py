@@ -5,13 +5,13 @@ import smtplib
 import click
 
 
-def parse_parameter_file(parameter_file, separator):
+def parse_parameter_file(parameter_file):
     name = parameter_file.name
     pars = parameter_file.read()
     pars = pars.splitlines()
 
     # get keywords from first line
-    key_list = [key.strip() for key in pars[0].split(separator)]
+    key_list = [key.strip() for key in pars[0].split(';')]
 
     # fail immediately if no EMAIL keyword is found
     if '$EMAIL$' not in key_list:
@@ -28,7 +28,7 @@ def parse_parameter_file(parameter_file, separator):
         # ignore empty lines
         if len(line) == 0:
             continue
-        values = [key.strip() for key in line.split(separator)]
+        values = [key.strip() for key in line.split(';')]
         if len(values) != len(key_list):
             raise click.ClickException(f'Line {count+1} in {name} malformed: '
                              f'{len(values)} found instead of {len(key_list)}')
@@ -110,14 +110,6 @@ def send_messages(msgs, force, server, tls, user, password):
 
     server.quit()
 
-
-def validate_separator(context, param, value):
-    # only one single character is allowedm and it can not be a comma [because we
-    # want to use a comma separated list in the $EMAIL$ parameter]
-    if len(value) > 1 or value == ',':
-        raise click.BadParameter(f"only once char different from comma is permitted: '{value}'!")
-    return value
-
 def validate_reply_to(context, param, value):
     if value is None:
         return None
@@ -145,10 +137,8 @@ def validate_reply_to(context, param, value):
 @click.option('-f', '--force', is_flag=True, default=False, help='do not ask for confirmation before sending messages (use with care!)')
 @click.option('--tls/--no-tls', default=True, show_default=True,
               help='encrypt SMTP connection with TLS (disable only if you know what you are doing!)')
-@click.option('--separator', help='set field separator in parameter file [comma "," is not permitted]',
-              default=';', show_default=True, callback=validate_separator, metavar="CHAR")
 def main(fromh, subject, server, parameter_file, body_file, bcc, cc, reply_to,
-         user, password, force, tls, separator):
+         user, password, force, tls):
     """Send mass mail
 
     Example:
@@ -175,7 +165,7 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, reply_to,
 
       Keywords from the parameter file (parm.csv) are subsituted in the body text. The keyword $EMAIL$ must always be present in the parameter files and contains a comma separated list of email addresses. Keep in mind shell escaping when setting headers with white spaces or special characters. Both files must be UTF8 encoded!
     """
-    keys = parse_parameter_file(parameter_file, separator)
+    keys = parse_parameter_file(parameter_file)
     msgs = create_email_bodies(body_file, keys, fromh, subject, cc, bcc, reply_to)
     send_messages(msgs, force, server, tls, user, password)
 
