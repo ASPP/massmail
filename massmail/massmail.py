@@ -37,7 +37,7 @@ def parse_parameter_file(parameter_file, separator):
 
     return keys
 
-def create_email_bodies(body_file, keys, fromh, subject, cc, reply_to):
+def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, reply_to):
     msgs = {}
     body_text = body_file.read()
     for i, emails in enumerate(keys['$EMAIL$']):
@@ -52,6 +52,8 @@ def create_email_bodies(body_file, keys, fromh, subject, cc, reply_to):
             msg['In-Reply-To'] = reply_to
         if cc:
             msg['Cc'] = cc
+        if bcc:
+            msg['Bcc'] = bcc
         # add the required date header
         msg['Date'] = email.utils.localtime()
         # add a unique message-id
@@ -60,11 +62,9 @@ def create_email_bodies(body_file, keys, fromh, subject, cc, reply_to):
 
     return msgs
 
-def send_messages(msgs, fromh, bcc, force, server, tls, smtpuser, smtppassword):
+def send_messages(msgs, force, server, tls, smtpuser, smtppassword):
     for emailaddr in msgs:
         emails = [e.strip() for e in emailaddr.split(',')]
-        if bcc:
-            emails.append(bcc)
         print('This email will be sent to:', ', '.join(emails))
         [print(hdr+':', value) for hdr, value in msgs[emailaddr].items()]
         print()
@@ -100,18 +100,15 @@ def send_messages(msgs, fromh, bcc, force, server, tls, smtpuser, smtppassword):
 
     for emailaddr in msgs:
         print('Sending email to:', emailaddr)
-        emails = [e.strip() for e in emailaddr.split(',')]
-        if bcc:
-            emails.append(bcc)
         try:
-            out = server.sendmail(fromh, emails, msgs[emailaddr].as_string())
+            out = server.send_message(msgs[emailaddr])
         except Exception as err:
             raise click.ClickException(f'Can not send email: {err}')
 
         if len(out) != 0:
             raise click.ClickException(f'Can not send email: {err}')
 
-    server.close()
+    server.quit()
 
 
 def validate_separator(context, param, value):
@@ -179,6 +176,6 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, reply_to,
       Keywords from the parameter file (parm.csv) are subsituted in the body text. The keyword $EMAIL$ must always be present in the parameter files and contains a comma separated list of email addresses. Keep in mind shell escaping when setting headers with white spaces or special characters. Both files must be UTF8 encoded!
     """
     keys = parse_parameter_file(parameter_file, separator)
-    msgs = create_email_bodies(body_file, keys, fromh, subject, cc, reply_to)
-    send_messages(msgs, fromh, bcc, force, server, tls, smtpuser, smtppassword)
+    msgs = create_email_bodies(body_file, keys, fromh, subject, cc, bcc, reply_to)
+    send_messages(msgs, force, server, tls, smtpuser, smtppassword)
 
