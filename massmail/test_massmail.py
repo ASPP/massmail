@@ -7,19 +7,7 @@ from massmail.massmail import main as massmail
 import click.testing
 import pytest
 
-# run the script from the command line through the click-internal testing interface
-@pytest.fixture
-def cli():
-    return click.testing.CliRunner()
 
-# return the list of monimal required options to run massmail without errors
-@pytest.fixture
-def opts():
-    return ['--from', 'Blushing Gorilla <gorilla@jungle.com>',
-            '--subject', 'Invitation to the jungle',
-            '--server', 'localhost:8025',
-            '--force',
-            '--no-tls']
 
 
 # return a locally running SMTP server. This fixture kills the server after the
@@ -46,7 +34,7 @@ def server():
 
 # return a "good" parameter file
 @pytest.fixture
-def good_parm(tmp_path):
+def parm(tmp_path):
     header = '$NAME$;$SURNAME$;$EMAIL$'
     row1 = 'Alice;Joyce;donkeys@jungle.com'
     f = tmp_path / 'parms.csv'
@@ -56,8 +44,8 @@ def good_parm(tmp_path):
 
 # return a "good" body file
 @pytest.fixture
-def good_body(tmp_path):
-    body = """Dear $NAME$ $SURNAME$,
+def body(tmp_path):
+    text = """Dear $NAME$ $SURNAME$,
 
     we kindly invite you to join us in the jungle
 
@@ -65,7 +53,7 @@ def good_body(tmp_path):
     Gorilla
     """
     f = tmp_path / 'body.txt'
-    f.write_text(body)
+    f.write_text(text)
     yield f
     f.unlink()
 
@@ -97,24 +85,35 @@ def parse_smtp(server):
     protocol = '\n'.join(protocol)
     return protocol, emails
 
+def cli(server, parm, body, opts=[]):
+    options  = ['--from', 'Blushing Gorilla <gorilla@jungle.com>',
+            '--subject', 'Invitation to the jungle',
+            '--server', 'localhost:8025',
+            '--force',
+            '--no-tls'] + opts + ['--parameter', str(parm), '--body', str(body)]
+    script = click.testing.CliRunner()
+    result = script.invoke(massmail, options)
+    assert result.exit_code == 0
+    protocol, emails = parse_smtp(server)
+    return protocol, emails
+
 # just test that the cli is working and we get the right help text
-def test_help(cli):
-    result = cli.invoke(massmail, ['-h'])
+def test_help():
+    result = click.testing.CliRunner().invoke(massmail, ['-h'])
     assert result.exit_code == 0
     assert 'Usage:' in result.output
     assert 'Example:' in result.output
 
-
-def test_regular_sending(cli, opts, server, good_parm, good_body):
-    inp = ['--parameter', str(good_parm), '--body', str(good_body)]
-    result = cli.invoke(massmail, opts + inp)
-    assert result.exit_code == 0
-    protocol, emails = parse_smtp(server)
+def test_regular_sending(server, parm, body):
+    protocol, emails = cli(server, parm, body)
     email = emails[0]
 
     # check that the envelope is correct
     assert 'sender: gorilla@jungle.com' in protocol
     assert 'recip: donkeys@jungle.com' in protocol
+
+    # email is ASCII, so the transfer encoding should be 7bit
+    assert email['Content-Transfer-Encoding'] == '7bit'
 
     # check that the headers are correct
     assert email['From'] == 'Blushing Gorilla <gorilla@jungle.com>'
@@ -126,50 +125,53 @@ def test_regular_sending(cli, opts, server, good_parm, good_body):
     assert email.get_content_type() == 'text/plain'
 
     # check that we have insert the right values for our keys
-    body = email.get_payload()
-    assert 'Dear Alice Joyce' in body
-    assert 'we kindly invite you to join us in the jungle' in body
+    text = email.get_payload()
+    assert 'Dear Alice Joyce' in text
+    assert 'we kindly invite you to join us in the jungle' in text
 
 
-def test_unicode_body_sending(cli, opts, server, good_parm, good_body):
+def test_unicode_body_sending(server, parm, body):
     # add some unicode text to the body
-    with good_body.open('at') as bodyf:
+    with body.open('at') as bodyf:
         bodyf.write('\nÜni©ödę¿\n')
-    inp = ['--parameter', str(good_parm), '--body', str(good_body)]
-    result = cli.invoke(massmail, opts + inp)
-    assert result.exit_code == 0
-    protocol, emails = parse_smtp(server)
+    protocol, emails = cli(server, parm, body)
     email = emails[0]
-    body = email.get_payload()
-    assert 'Üni©ödę¿' in body
+    # unicode characters force the transfer encoding to  8bit
+    assert email['Content-Transfer-Encoding'] == '8bit'
+    text = email.get_payload()
+    assert 'Üni©ödę¿' in text
 
+def test_wild_unicode_body_sending(server, parm, body):
+    # add some unicode text to the body
+    with body.open('at') as bodyf:
+        bodyf.write('\nœ´®†¥¨ˆøπ¬˚∆˙©ƒ∂ßåΩ≈ç√∫˜µ≤ユーザーコードa😀\n')
+    protocol, emails = cli(server, parm, body)
+    email = emails[0]
+    # because we use unicode characters that don't fit in one byte,
+    # the email will be encoded in base64 for tranfer
+    assert email['Content-Transfer-Encoding'] == 'base64'
+    # because the text contains, we trust the internal email_module machinery
+    # to perform the proper decoding
+    text = email.get_content()
+    assert 'œ´®†¥¨ˆøπ¬˚∆˙©ƒ∂ßåΩ≈ç√∫˜µ≤ユーザーコードa😀' in text
 
-def test_unicode_subject(cli, opts, server, good_parm, good_body):
-    opts.extend(('--subject', 'Üni©ödę¿'))
-    inp = ['--parameter', str(good_parm), '--body', str(good_body)]
-    result = cli.invoke(massmail, opts + inp)
-    assert result.exit_code == 0
-    protocol, emails = parse_smtp(server)
+def test_unicode_subject(server, parm, body):
+    opts = ['--subject', 'Üni©ödę¿']
+    protocol, emails = cli(server, parm, body, opts=opts)
     email = emails[0]
     assert email['Subject'] == 'Üni©ödę¿'
 
-def test_unicode_from(cli, opts, server, good_parm, good_body):
-    opts.extend(('--from', 'Üni©ödę¿ <broken@email.com>'))
-    inp = ['--parameter', str(good_parm), '--body', str(good_body)]
-    result = cli.invoke(massmail, opts + inp)
-    assert result.exit_code == 0
-    protocol, emails = parse_smtp(server)
+def test_unicode_from(server, parm, body):
+    opts = ['--from', 'Üni©ödę¿ <broken@email.com>']
+    protocol, emails = cli(server, parm, body, opts=opts)
     email = emails[0]
     assert email['From'] == 'Üni©ödę¿ <broken@email.com>'
 
-def test_unicode_several_reciepients(cli, opts, server, good_parm, good_body):
+def test_unicode_several_reciepients(server, parm, body):
     # add some unicode text to the body
-    with good_parm.open('at') as parmf:
+    with parm.open('at') as parmf:
         parmf.write('\nJohn; Smith; j@monkeys.com\n')
-    inp = ['--parameter', str(good_parm), '--body', str(good_body)]
-    result = cli.invoke(massmail, opts + inp)
-    assert result.exit_code == 0
-    protocol, emails = parse_smtp(server)
+    protocol, emails = cli(server, parm, body)
 
     assert len(emails) == 2
     assert 'sender: gorilla@jungle.com' in protocol
@@ -181,12 +183,9 @@ def test_unicode_several_reciepients(cli, opts, server, good_parm, good_body):
     assert 'Dear Alice Joyce' in emails[0].get_payload()
     assert 'Dear John Smith' in emails[1].get_payload()
 
-def test_unicode_parm(cli, opts, server, good_parm, good_body):
+def test_unicode_parm(server, parm, body):
     # add some unicode text to the body
-    with good_parm.open('at') as parmf:
+    with parm.open('at') as parmf:
         parmf.write('\nÜni©ödę¿; Smith; j@monkeys.com\n')
-    inp = ['--parameter', str(good_parm), '--body', str(good_body)]
-    result = cli.invoke(massmail, opts + inp)
-    assert result.exit_code == 0
-    protocol, emails = parse_smtp(server)
+    protocol, emails = cli(server, parm, body)
     assert 'Dear Üni©ödę¿ Smith' in emails[1].get_payload()
