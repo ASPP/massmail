@@ -88,7 +88,7 @@ def parse_smtp(server):
     return protocol, emails
 
 # wrapper for running the massmail script and parse the SMTP server output
-def cli(server, parm, body, opts={}):
+def cli(server, parm, body, opts={}, errs=False):
     options = {
                '--from'      : 'Blushing Gorilla <gorilla@jungle.com>',
                '--subject'   : 'Invitation to the jungle',
@@ -106,6 +106,10 @@ def cli(server, parm, body, opts={}):
     # invoke the script, add the no-tls options (our SMTP does not support TLS)
     # and do not ask for confirmation to send emails
     result = script.invoke(massmail, opts + ['--force', '--no-tls'])
+    if errs:
+        # we expect errors, so do not interact with the SMTP server at all
+        # and read the errors from the script instead
+        return result.exit_code, result.output
     assert result.exit_code == 0
     # parse the output of the SMTP server which is running in the background
     protocol, emails = parse_smtp(server)
