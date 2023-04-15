@@ -85,16 +85,29 @@ def parse_smtp(server):
     protocol = '\n'.join(protocol)
     return protocol, emails
 
-def cli(server, parm, body, opts=[]):
-    options  = ['--from', 'Blushing Gorilla <gorilla@jungle.com>',
-            '--subject', 'Invitation to the jungle',
-            '--server', 'localhost:8025',
-            '--force',
-            '--no-tls'] + opts + ['--parameter', str(parm), '--body', str(body)]
+# wrapper for running the massmail script and parse the SMTP server output
+def cli(server, parm, body, opts={}):
+    options = {
+               '--from'      : 'Blushing Gorilla <gorilla@jungle.com>',
+               '--subject'   : 'Invitation to the jungle',
+               '--server'    : 'localhost:8025',
+               '--parameter' : str(parm),
+               '--body'      : str(body),
+               }
+    options.update(opts)
+    opts = []
+    for option, value in options.items():
+        opts.extend((option, value))
+    # now we have all default options + options passed by the test
+    # instantiate a click Runner
     script = click.testing.CliRunner()
-    result = script.invoke(massmail, options)
+    # invoke the script, add the no-tls options (our SMTP does not support TLS)
+    # and do not ask for confirmation to send emails
+    result = script.invoke(massmail, opts + ['--force', '--no-tls'])
     assert result.exit_code == 0
+    # parse the output of the SMTP server which is running in the background
     protocol, emails = parse_smtp(server)
+    # return the protocol text and a list of emails
     return protocol, emails
 
 # just test that the cli is working and we get the right help text
