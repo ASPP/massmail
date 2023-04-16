@@ -85,7 +85,7 @@ def parse_smtp(server):
     return protocol, emails
 
 # wrapper for running the massmail script and parse the SMTP server output
-def cli(server, parm, body, opts={}, errs=False):
+def cli(server, parm, body, opts={}, opts_list=[], errs=False):
     options = {
                '--from'      : 'Blushing Gorilla <gorilla@jungle.com>',
                '--subject'   : 'Invitation to the jungle',
@@ -93,10 +93,15 @@ def cli(server, parm, body, opts={}, errs=False):
                '--parameter' : str(parm),
                '--body'      : str(body),
                }
+    # options can be passed by a test as a dictionary or as a list
+    # as a dictionary
     options.update(opts)
     opts = []
     for option, value in options.items():
         opts.extend((option, value))
+    # we need to allow passing options as a list for those options that can be
+    # passed multiple times, e.g. --attachment, where a dictionary wouldn't work
+    opts.extend(opts_list)
     # now we have all default options + options passed by the test
     # instantiate a click Runner
     script = click.testing.CliRunner()
@@ -319,3 +324,29 @@ def test_rich_email_address_in_parm(server, parm, body):
     assert 'recip: j@monkeys.org' in protocol
     assert 'Mario Rossi' in emails[1]['To']
     assert 'j@monkeys.org' in emails[1]['To']
+
+def test_attach_png_and_pdf(server, parm, body, tmp_path):
+    # create a little PNG (greyscale, 1x1 pixel) from:
+    # https://garethrees.org/2007/11/14/pngcrush/
+    png_bytes = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x01\x00\x00\x00\x007n\xf9$\x00\x00\x00\nIDATx\x9cc`\x00\x00\x00\x02\x00\x01H\xaf\xa4q\x00\x00\x00\x00IEND\xaeB`\x82'
+    png_file = tmp_path / 'test.png'
+    png_file.write_bytes(png_bytes)
+
+    # create a little PDF (stackoverflow + adaptations)
+    pdf_bytes = b"%PDF-1.2 \n9 0 obj\n<<\n>>\nstream\nBT/ 32 Tf(text)' ET\nendstream\nendobj\n4 0 obj\n<<\n/Type /Page\n/Parent 5 0 R\n/Contents 9 0 R\n>>\nendobj\n5 0 obj\n<<\n/Kids [4 0 R ]\n/Count 1\n/Type /Pages\n/MediaBox [ 0 0 250 50 ]\n>>\nendobj\n3 0 obj\n<<\n/Pages 5 0 R\n/Type /Catalog\n>>\nendobj\ntrailer\n<<\n/Root 3 0 R\n>>\n%%EOF"
+    pdf_file = tmp_path / 'test.pdf'
+    pdf_file.write_bytes(pdf_bytes)
+
+    opts = ('--attachment', str(png_file), '--attachment', str(pdf_file))
+    protocol, emails = cli(server, parm, body, opts_list=opts)
+    email = emails[0]
+    assert 'Dear Alice Joyce' in email.get_body().get_content()
+    attachments = list(email.iter_attachments())
+    assert attachments[0].get_content_type() == 'image/png'
+    assert attachments[0].get_filename() == 'test.png'
+    assert attachments[0].get_content() == png_bytes
+    assert attachments[1].get_content_type() == 'application/pdf'
+    assert attachments[1].get_filename() == 'test.pdf'
+    assert attachments[1].get_content() == pdf_bytes
+
+
