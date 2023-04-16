@@ -349,4 +349,13 @@ def test_attach_png_and_pdf(server, parm, body, tmp_path):
     assert attachments[1].get_filename() == 'test.pdf'
     assert attachments[1].get_content() == pdf_bytes
 
+def test_unknown_attachment_type(server, parm, body, tmp_path):
+    random_bytes = b'\x9diou\xd5\x12\xdf/\x03\xf8'
+    fl = tmp_path / 'dummy'
+    fl.write_bytes(random_bytes)
 
+    opts = {'--attachment' : str(fl)}
+    protocol, emails = cli(server, parm, body, opts=opts)
+    attachments = list(emails[0].iter_attachments())
+    assert attachments[0].get_content_type() == 'application/octet-stream'
+    assert attachments[0].get_content() == random_bytes
