@@ -292,3 +292,11 @@ def test_invalid_in_reply_to(server, parm, body):
     output = cli(server, parm, body, opts=opts, errs=True)
     assert 'Invalid value' in output
     assert 'brackets' in output
+
+def test_validate_from(server, parm, body):
+    opts = {'--from' : 'invalid@email'}
+    assert 'is not a valid email' in cli(server, parm, body, opts=opts, errs=True)
+    opts = {'--from' : 'Blushing Gorilla'}
+    assert 'is not a valid email' in cli(server, parm, body, opts=opts, errs=True)
+    opts = {'--from' : 'Blushing Gorilla <invalid@email>'}
+    assert 'is not a valid email' in cli(server, parm, body, opts=opts, errs=True)
