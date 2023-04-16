@@ -3,6 +3,7 @@ import re
 import smtplib
 
 import click
+import email_validator
 
 
 def parse_parameter_file(parameter_file):
@@ -117,9 +118,42 @@ def validate_inreply_to(context, param, value):
         raise click.BadParameter(f"must be enclosed in brackets (<MESSAGE-ID>): {value}!")
     return value
 
+# a custom click parameter type to represent email addresses
+class Email(click.ParamType):
+    name = "Email"
+
+    def convert(self, value, param, ctx):
+        # we support two kind of email address:
+        # 1. x@y.org
+        # 2. Blushing Gorilla <x@y.org>
+        if address := re.match(r'(.+)<(\S+)>', value):
+            # we are dealing with form 2
+            # extract the email address
+            prefix = address.group(1) # here we get "Blushing Gorilla "
+            address = address.group(2) # here we get x@y.org
+        else:
+            # we are dealing with form 1
+            prefix = None
+            address = value
+        # validate the email address
+        try:
+            emailinfo = email_validator.validate_email(address, check_deliverability=False)
+        except email_validator.EmailNotValidError as e:
+            self.fail(f"{value!r} is not a valid email address:\n{str(e)}", param, ctx)
+        # support different versions of email-validator
+        try:
+            email = emailinfo.normalized # version >= 2.0
+        except AttributeError:
+            email = emailinfo.email # version <= 1.3
+        if prefix:
+            return f'{prefix}<{email}>'
+        else:
+            return email
+
+
 @click.command(context_settings={'help_option_names': ['-h', '--help'],
                                  'max_content_width': 120})
-@click.option('-F', '--from', 'fromh', required=True, help='set the From: header')
+@click.option('-F', '--from', 'fromh', required=True, type=Email(), help='set the From: header')
 @click.option('-S', '--subject', required=True, help='set the Subject: header')
 @click.option('-Z', '--server', required=True, help='the SMTP server to use')
 @click.option('-P', '--parameter', 'parameter_file', required=True,
@@ -128,8 +162,8 @@ def validate_inreply_to(context, param, value):
 @click.option('-B', '--body', 'body_file', required=True,
               type=click.File(mode='rt', encoding='utf8', errors='strict'),
               help='set the email body file (see above for an example)')
-@click.option('-b', '--bcc', help='set the Bcc: header')
-@click.option('-c', '--cc', help='set the Cc: header')
+@click.option('-b', '--bcc', type=Email(), help='set the Bcc: header')
+@click.option('-c', '--cc', type=Email(), help='set the Cc: header')
 @click.option('-r', '--inreply-to', callback=validate_inreply_to, metavar="<ID>",
               help='set the In-Reply-to: header. Set it to a Message-ID.')
 @click.option('-u', '--user', help='SMTP user name. If not set, use anonymous SMTP connection')

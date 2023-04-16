@@ -5,7 +5,7 @@ description = "Send mass mail"
 authors = [ { name="ASPP", email ="info@aspp.school" } ]
 license = { file = "LICENSE" }
 requires-python = ">=3.6"
-dependencies = [ "aiosmtpd", "click", "pytest" ]
+dependencies = [ "aiosmtpd", "click", "email-validator", "pytest" ]
 
 [project.scripts]
 massmail = "massmail.massmail:main"
