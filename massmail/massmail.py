@@ -4,6 +4,10 @@ import pathlib
 import re
 import smtplib
 
+import rich.prompt
+import rich.panel
+import rich.progress
+from rich import print as rprint
 import click
 import email_validator
 
@@ -59,7 +63,7 @@ def parse_parameter_file(parameter_file):
 def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, attachment):
     msgs = {}
     body_text = body_file.read()
-
+    warned_once = False
     # collect attachments once and then attach them to every single message
     attachments = {}
     for path in attachment:
@@ -106,8 +110,9 @@ def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, at
             # an unknown key was detected
             raise click.ClickException(f'Unknown key in body file {body_file.name}: {err}')
         # warn if no keys were found
-        if body == body_text:
-            print('WARNING: no keys found in body file {body_file.name}')
+        if body == body_text and not warned_once:
+            rprint(f'[bold][red]WARNING:[/red] no keys found in body file {body_file.name}[/bold]')
+            warned_once = True
 
         msg = email.message.EmailMessage()
         msg.set_content(body)
@@ -132,20 +137,27 @@ def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, at
     return msgs
 
 def send_messages(msgs, server, user, password):
-    for emailaddr in msgs:
-        emails = [e.strip() for e in emailaddr.split(',')]
-        print('This email will be sent to:', ', '.join(emails))
-        for hdr, value in msgs[emailaddr].items():
-            print(f'{hdr}: {value}')
-        for attachment in msgs[emailaddr].iter_attachments():
-            name = attachment.get_filename()
-            content_type = attachment.get_content_type()
-            print(f'Attachment ({content_type}): {name}')
-        body = msgs[emailaddr].get_body().get_content()
-        print(f'\n{body}')
+    # print one example email for confirmation
+    ex_addr = list(msgs.keys())[0]
+    msg = msgs[ex_addr]
+    panel = []
+    for hdr, value in msg.items():
+        if hdr in ('From', 'Subject', 'Cc', 'Bcc', 'In-Reply-To'):
+            panel.append(f'[yellow]{hdr}[/yellow]: [red bold]{value}[/red bold]')
+        else:
+            panel.append(f'[yellow]{hdr}[/yellow]: {value}')
+    for attachment in msg.iter_attachments():
+        name = attachment.get_filename()
+        content_type = attachment.get_content_type()
+        panel.append(f'[magenta]Attachment[/magenta] ([cyan]{content_type}[/cyan]): {name}')
+    body = msg.get_body().get_content()
+    panel.append(f'\n{body}')
+    rprint(rich.panel.Panel.fit('\n'.join(panel)))
 
     # ask for confirmation before really sending stuff
-    if not click.confirm('Send the emails above?', default=None):
+    rprint(f'[bold]About to send {len(msgs)} email messages like the one above…[/bold]')
+    if not rich.prompt.Confirm.ask(f'[bold]Send?[/bold]'):
+        #if not click.confirm('Send the emails above?', default=None):
         raise click.ClickException('Aborted! We did not send anything!')
 
     print()
@@ -165,16 +177,18 @@ def send_messages(msgs, server, user, password):
         try:
             # get password if needed
             if password is None:
-                password = click.prompt(f'Enter password for {user} on {servername}',
-                                    hide_input=True)
+                password = rich.prompt.Prompt.ask(f'Enter password for '
+                                                  f'[bold]{user}[/bold] '
+                                                  f'on [bold]{servername}[/bold]',
+                                                  password=True)
             server.login(user, password)
         except Exception as err:
             raise click.ClickException(f'Can not login to {servername}: {err}')
 
     print()
 
-    for emailaddr in msgs:
-        print('Sending email to:', emailaddr)
+    for emailaddr in rich.progress.track(msgs, description="[green]Sending:[/green]"):
+        rprint(f'Sending to: [bold]{emailaddr}[/bold]')
         try:
             out = server.send_message(msgs[emailaddr])
         except Exception as err:
