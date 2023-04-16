@@ -62,6 +62,7 @@ Options:
                     encoding, default: "UTF-8". Note that if you fuck
                     up this one, your email will be full of rubbish:
                     You have been warned!
+                    THIS IS OLD!!!
 
   -z SERVER         the SMTP server to use. This argument is required
 
