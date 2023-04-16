@@ -1,4 +1,6 @@
 import email
+import mimetypes
+import pathlib
 import re
 import smtplib
 
@@ -49,9 +51,22 @@ def parse_parameter_file(parameter_file):
         keys['$EMAIL$'][idx] = ','.join(validated)
     return keys
 
-def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to):
+def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, attachment):
     msgs = {}
     body_text = body_file.read()
+
+    # collect attachments once and then attach them to every single message
+    attachments = {}
+    for path in attachment:
+        # guess the MIME type based on file extension only...
+        mime, encoding = mimetypes.guess_type(path, strict=False)
+        # if no guess or if the type is already encoded, the MIME type is octet-stream
+        if mime is None or encoding is not None:
+            mime = 'application/octet-stream'
+        maintype, subtype = mime.split('/', 1)
+        data = path.read_bytes()
+        attachments[path.name] = (data, maintype, subtype)
+
     for i, emails in enumerate(keys['$EMAIL$']):
         # find keywords and substitute with values
         body = re.sub(r'\$\w+\$', lambda m: keys[m.group(0)][i], body_text)
@@ -70,6 +85,9 @@ def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to):
         msg['Date'] = email.utils.localtime()
         # add a unique message-id
         msg['Message-ID'] = email.utils.make_msgid()
+        # add attachments
+        for name, (data, mtyp, styp) in attachments.items():
+            msg.add_attachment(data, filename=name, maintype=mtyp, subtype=styp)
         msgs[emails] = msg
 
     return msgs
@@ -78,9 +96,14 @@ def send_messages(msgs, force, server, tls, user, password):
     for emailaddr in msgs:
         emails = [e.strip() for e in emailaddr.split(',')]
         print('This email will be sent to:', ', '.join(emails))
-        [print(hdr+':', value) for hdr, value in msgs[emailaddr].items()]
-        print()
-        print(msgs[emailaddr].get_content())
+        for hdr, value in msgs[emailaddr].items():
+            print(f'{hdr}: {value}')
+        for attachment in msgs[emailaddr].iter_attachments():
+            name = attachment.get_filename()
+            content_type = attachment.get_content_type()
+            print(f'Attachment ({content_type}): {name}')
+        body = msgs[emailaddr].get_body().get_content()
+        print(f'\n{body}')
 
     if not force:
         # ask for confirmation before really sending stuff
@@ -190,6 +213,9 @@ class Email(click.ParamType):
               help='set the In-Reply-to: header. Set it to a Message-ID.')
 @click.option('-u', '--user', help='SMTP user name. If not set, use anonymous SMTP connection')
 @click.option('-p', '--password', help='SMTP password. If not set you will be prompted for one')
+@click.option('-a', '--attachment', help='add attachment [repeat for multiple attachments]',
+              multiple=True, type=click.Path(exists=True, dir_okay=False,
+                                             readable=True, path_type=pathlib.Path))
 
 ### INTERNAL OPTIONS ###
 # do not ask for confirmation before sending messages (to be used in tests)
@@ -199,7 +225,7 @@ class Email(click.ParamType):
 
 ### MAIN SCRIPT ###
 def main(fromh, subject, server, parameter_file, body_file, bcc, cc, inreply_to,
-         user, password, force, tls):
+         user, password, attachment, force, tls):
     """Send mass mail
 
     Example:
@@ -227,6 +253,6 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, inreply_to,
       Values from the parameter file (parm.csv) are inserted in the body text (body.txt). The keyword $EMAIL$ must always be present in the parameter files and contains a comma separated list of email addresses. Keep in mind shell escaping when setting headers with white spaces or special characters. Both files must be UTF8 encoded!
     """
     keys = parse_parameter_file(parameter_file)
-    msgs = create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to)
+    msgs = create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, attachment)
     send_messages(msgs, force, server, tls, user, password)
 
