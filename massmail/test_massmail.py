@@ -181,6 +181,7 @@ def parse_smtp(server):
 
 # wrapper for running the massmail script and parse the SMTP server output
 def cli(server, parm, body, opts={}, opts_list=[], errs=False):
+    # set default options
     options = {
                '--from'      : 'Blushing Gorilla <gorilla@jungle.com>',
                '--subject'   : 'Invitation to the jungle',
@@ -207,13 +208,14 @@ def cli(server, parm, body, opts={}, opts_list=[], errs=False):
         assert result.exit_code != 0
         return result.output
     else:
+        # parse the output of the SMTP server which is running in the background
+        protocol, emails = parse_smtp(server)
         # in case of unexpected error, let's print the output so we have a chance
         # to debug without touching the code here
         if result.exit_code != 0:
             print(result.output)
+            print(protocol)
         assert result.exit_code == 0
-        # parse the output of the SMTP server which is running in the background
-        protocol, emails = parse_smtp(server)
         # return the protocol text and a list of emails
         return protocol, emails
 
