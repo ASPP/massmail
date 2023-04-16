@@ -106,12 +106,14 @@ def cli(server, parm, body, opts={}, errs=False):
     if errs:
         # we expect errors, so do not interact with the SMTP server at all
         # and read the errors from the script instead
-        return result.exit_code, result.output
-    assert result.exit_code == 0
-    # parse the output of the SMTP server which is running in the background
-    protocol, emails = parse_smtp(server)
-    # return the protocol text and a list of emails
-    return protocol, emails
+        assert result.exit_code != 0
+        return result.output
+    else:
+        assert result.exit_code == 0
+        # parse the output of the SMTP server which is running in the background
+        protocol, emails = parse_smtp(server)
+        # return the protocol text and a list of emails
+        return protocol, emails
 
 # just test that the cli is working and we get the right help text
 def test_help():
@@ -225,43 +227,34 @@ def test_multiple_recipients_in_one_row(server, parm, body):
 def test_parm_malformed_keys(server, parm, body):
     parm.write_text("""$NAME;$SURNAME$;$EMAIL$
                     test;test;test@test.com""")
-    code, output = cli(server, parm, body, errs=True)
-    assert code != 0
+    output = cli(server, parm, body, errs=True)
     assert '$NAME' in output
     assert 'malformed' in output
     parm.write_text("""$NAME$;SURNAME$;$EMAIL$
                     test;test;test@test.com""")
-    code, output = cli(server, parm, body, errs=True)
-    assert code != 0
+    output = cli(server, parm, body, errs=True)
     assert 'SURNAME$' in output
     assert 'malformed' in output
 
 def test_missing_email_in_parm(server, parm, body):
     parm.write_text("""$NAME$;$SURNAME$
                     test;test""")
-    code, output = cli(server, parm, body, errs=True)
-    assert code != 0
-    assert 'No $EMAIL$' in output
+    assert 'No $EMAIL$' in cli(server, parm, body, errs=True)
 
 def test_missing_value_in_parm(server, parm, body):
     with parm.open('at') as parmf:
         parmf.write('\nMario;Rossi;j@monkeys.com;too much\n')
-    code, output = cli(server, parm, body, errs=True)
-    assert code != 0
+    output = cli(server, parm, body, errs=True)
     assert 'Line 2' in output
     assert '4 found instead of 3' in output
 
 def test_server_offline(server, parm, body):
     opts = {'--server' : 'noserver:25' }
-    code, output = cli(server, parm, body, opts=opts, errs=True)
-    assert code != 0
-    assert 'Can not connect to' in output
+    assert 'Can not connect to' in cli(server, parm, body, opts=opts, errs=True)
 
 def test_server_wrong_authentication(server, parm, body):
     opts = {'--user' : 'noone', '--password' : 'nopass' }
-    code, output = cli(server, parm, body, opts=opts, errs=True)
-    assert code != 0
-    assert 'Can not login' in output
+    assert 'Can not login' in cli(server, parm, body, opts=opts, errs=True)
 
 def test_bcc(server, parm, body):
     opts = {'--bcc' : 'x@monkeys.com'}
@@ -296,7 +289,6 @@ def test_in_reply_to(server, parm, body):
 
 def test_invalid_in_reply_to(server, parm, body):
     opts = {'--inreply-to' : 'abc'}
-    code, output = cli(server, parm, body, opts=opts, errs=True)
-    assert code != 0
+    output = cli(server, parm, body, opts=opts, errs=True)
     assert 'Invalid value' in output
     assert 'brackets' in output
