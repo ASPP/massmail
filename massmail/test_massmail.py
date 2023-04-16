@@ -109,6 +109,10 @@ def cli(server, parm, body, opts={}, errs=False):
         assert result.exit_code != 0
         return result.output
     else:
+        # in case of unexpected error, let's print the output so we have a chance
+        # to debug without touching the code here
+        if result.exit_code != 0:
+            print(result.output)
         assert result.exit_code == 0
         # parse the output of the SMTP server which is running in the background
         protocol, emails = parse_smtp(server)
