@@ -311,3 +311,11 @@ def test_invalid_email_in_parm(server, parm, body):
     output = cli(server, parm, body, errs=True)
     assert 'is not a valid email' in output
     assert 'Line 2' in output
+
+def test_rich_email_address_in_parm(server, parm, body):
+    with parm.open('at') as parmf:
+        parmf.write('\nMario;Rossi;Mario Rossi <j@monkeys.org>\n')
+    protocol, emails = cli(server, parm, body)
+    assert 'recip: j@monkeys.org' in protocol
+    assert 'Mario Rossi' in emails[1]['To']
+    assert 'j@monkeys.org' in emails[1]['To']
