@@ -100,7 +100,10 @@ def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, at
         #   into the body_text in place of the key
         # - at the next iteration of i, we are going to select a different line from
         #   the parameter file, and generate a new email with different substitutions
-        body = re.sub(r'\$\w+\$', lambda m: keys[m.group(0)][i], body_text)
+        try:
+            body = re.sub(r'\$\w+\$', lambda m: keys[m.group(0)][i], body_text)
+        except KeyError as err:
+            raise click.ClickException(f'Unknown key in body file {body_file.name}: {err}')
         msg = email.message.EmailMessage()
         msg.set_content(body)
         msg['To'] = emails

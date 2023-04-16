@@ -366,6 +366,14 @@ def test_empty_values_in_parm(server, parm, body):
     assert 'Line 2' in output
     assert 'empty value for key $SURNAME$' in output
 
+def test_unknown_key_in_body(server, parm, body):
+    # add some unknown key to the body
+    with body.open('at') as bodyf:
+        bodyf.write('\n$UNKNOWN$\n')
+    output = cli(server, parm, body, errs=True)
+    assert 'Unknown key in body' in output
+    assert '$UNKNOWN$' in output
+
 def test_server_offline(server, parm, body):
     opts = {'--server' : 'noserver:25' }
     assert 'Can not connect to' in cli(server, parm, body, opts=opts, errs=True)
