@@ -180,7 +180,7 @@ def parse_smtp(server):
     return protocol, emails
 
 # wrapper for running the massmail script and parse the SMTP server output
-def cli(server, parm, body, opts={}, opts_list=[], errs=False):
+def cli(server, parm, body, opts={}, opts_list=[], errs=False, output=False):
     # set default options
     options = {
                '--from'      : 'Blushing Gorilla <gorilla@jungle.com>',
@@ -216,8 +216,12 @@ def cli(server, parm, body, opts={}, opts_list=[], errs=False):
             print(result.output)
             print(protocol)
         assert result.exit_code == 0
-        # return the protocol text and a list of emails
-        return protocol, emails
+        if output:
+            # return the protocol text and a list of emails and the output of the script
+            return protocol, emails, result.output
+        else:
+            # return the protocol text and a list of emails
+            return protocol, emails
 
 # just test that the cli is working and we get the right help text
 def test_help():
@@ -373,6 +377,15 @@ def test_unknown_key_in_body(server, parm, body):
     output = cli(server, parm, body, errs=True)
     assert 'Unknown key in body' in output
     assert '$UNKNOWN$' in output
+
+def test_no_key_in_body(server, parm, body):
+    # add some unknown key to the body
+    with body.open('wt') as bodyf:
+        bodyf.write('No keys here!\n')
+    protocol, emails, output = cli(server, parm, body, output=True)
+    assert 'WARNING: no keys found in body file' in output
+    assert 'No keys here!' in emails[0].get_content()
+
 
 def test_server_offline(server, parm, body):
     opts = {'--server' : 'noserver:25' }

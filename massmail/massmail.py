@@ -103,7 +103,12 @@ def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, at
         try:
             body = re.sub(r'\$\w+\$', lambda m: keys[m.group(0)][i], body_text)
         except KeyError as err:
+            # an unknown key was detected
             raise click.ClickException(f'Unknown key in body file {body_file.name}: {err}')
+        # warn if no keys were found
+        if body == body_text:
+            print('WARNING: no keys found in body file {body_file.name}')
+
         msg = email.message.EmailMessage()
         msg.set_content(body)
         msg['To'] = emails
