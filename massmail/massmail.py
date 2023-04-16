@@ -171,6 +171,8 @@ class Email(click.ParamType):
 
 @click.command(context_settings={'help_option_names': ['-h', '--help'],
                                  'max_content_width': 120})
+
+### REQUIRED OPTIONS ###
 @click.option('-F', '--from', 'fromh', required=True, type=Email(), help='set the From: header')
 @click.option('-S', '--subject', required=True, help='set the Subject: header')
 @click.option('-Z', '--server', required=True, help='the SMTP server to use')
@@ -180,15 +182,22 @@ class Email(click.ParamType):
 @click.option('-B', '--body', 'body_file', required=True,
               type=click.File(mode='rt', encoding='utf8', errors='strict'),
               help='set the email body file (see above for an example)')
+
+### OPTIONALS ###
 @click.option('-b', '--bcc', type=Email(), help='set the Bcc: header')
 @click.option('-c', '--cc', type=Email(), help='set the Cc: header')
 @click.option('-r', '--inreply-to', callback=validate_inreply_to, metavar="<ID>",
               help='set the In-Reply-to: header. Set it to a Message-ID.')
 @click.option('-u', '--user', help='SMTP user name. If not set, use anonymous SMTP connection')
 @click.option('-p', '--password', help='SMTP password. If not set you will be prompted for one')
-@click.option('-f', '--force', is_flag=True, default=False, help='do not ask for confirmation before sending messages (use with care!)')
-@click.option('--tls/--no-tls', default=True, show_default=True,
-              help='encrypt SMTP connection with TLS (disable only if you know what you are doing!)')
+
+### INTERNAL OPTIONS ###
+# do not ask for confirmation before sending messages (to be used in tests)
+@click.option('-f', '--force', is_flag=True, default=False, hidden=True)
+# do not TLS encrypt connection to SMTP server (to be used in tests)
+@click.option('--tls/--no-tls', default=True, hidden=True)
+
+### MAIN SCRIPT ###
 def main(fromh, subject, server, parameter_file, body_file, bcc, cc, inreply_to,
          user, password, force, tls):
     """Send mass mail
@@ -196,7 +205,7 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, inreply_to,
     Example:
 
      \b
-     massmail --from "Blushing Gorilla <gorilla@jungle.com>" --subject "Invitation to the jungle" --server smtp.gmail.com:587 -P parm.csv -B body.txt
+     massmail --from "Blushing Gorilla <gorilla@jungle.com>" --subject "Invitation to the jungle" --server mail.example.com:587 --user user@example.com -P parm.csv -B body.txt
 
     parm.csv (semi-colon separated):
 
@@ -215,7 +224,7 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, inreply_to,
 
     Notes:
 
-      Keywords from the parameter file (parm.csv) are subsituted in the body text. The keyword $EMAIL$ must always be present in the parameter files and contains a comma separated list of email addresses. Keep in mind shell escaping when setting headers with white spaces or special characters. Both files must be UTF8 encoded!
+      Values from the parameter file (parm.csv) are inserted in the body text (body.txt). The keyword $EMAIL$ must always be present in the parameter files and contains a comma separated list of email addresses. Keep in mind shell escaping when setting headers with white spaces or special characters. Both files must be UTF8 encoded!
     """
     keys = parse_parameter_file(parameter_file)
     msgs = create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to)
