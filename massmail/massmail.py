@@ -31,10 +31,16 @@ def parse_parameter_file(parameter_file):
         # ignore empty lines
         if len(line) == 0:
             continue
-        values = [key.strip() for key in line.split(';')]
+        values = [value.strip() for value in line.split(';')]
         if len(values) != len(key_list):
             raise click.ClickException(f'Line {count+1} in {name} malformed: '
                              f'{len(values)} found instead of {len(key_list)}')
+        for idx, value in enumerate(values):
+            # do not allow for empty values
+            if value == '':
+                raise click.ClickException(f'Line {count+1} in {name} malformed: '
+                                        f'empty value for key {key_list[idx]}')
+
         for i, key in enumerate(key_list):
             keys[key].append(values[i])
 

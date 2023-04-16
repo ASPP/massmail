@@ -343,12 +343,26 @@ def test_missing_email_in_parm(server, parm, body):
                     test;test""")
     assert 'No $EMAIL$' in cli(server, parm, body, errs=True)
 
-def test_missing_value_in_parm(server, parm, body):
+def test_too_many_values_in_parm(server, parm, body):
     with parm.open('at') as parmf:
         parmf.write('\nMario;Rossi;j@monkeys.com;too much\n')
     output = cli(server, parm, body, errs=True)
     assert 'Line 2' in output
     assert '4 found instead of 3' in output
+
+def test_missing_values_in_parm(server, parm, body):
+    with parm.open('at') as parmf:
+        parmf.write('\nMario;j@monkeys.com\n')
+    output = cli(server, parm, body, errs=True)
+    assert 'Line 2' in output
+    assert '2 found instead of 3' in output
+
+def test_empty_values_in_parm(server, parm, body):
+    with parm.open('at') as parmf:
+        parmf.write('\nMario;;j@monkeys.com\n')
+    output = cli(server, parm, body, errs=True)
+    assert 'Line 2' in output
+    assert 'empty value for key $SURNAME$' in output
 
 def test_server_offline(server, parm, body):
     opts = {'--server' : 'noserver:25' }
