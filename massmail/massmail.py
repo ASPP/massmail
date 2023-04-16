@@ -40,7 +40,6 @@ def parse_parameter_file(parameter_file):
             if value == '':
                 raise click.ClickException(f'Line {count+1} in {name} malformed: '
                                         f'empty value for key {key_list[idx]}')
-
         for i, key in enumerate(key_list):
             keys[key].append(values[i])
 
@@ -75,6 +74,32 @@ def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, at
 
     for i, emails in enumerate(keys['$EMAIL$']):
         # find keywords and substitute with values
+
+        # The following line does this:
+        # - Assume that the parameter file has an header like
+        #     $NAME$;$SURNAME$;$EMAIL$
+        # - Assume that line "i" from the parameter file look like this
+        #     Gorilla; Blushing; email@gorillas.org
+        # - Then the following like is equivalent to having a loop over the keys
+        #   from the parameter file: ($NAME$, $SURNAME$)
+        # - The m in the lambda is going to be the re.match object for $NAME$ at the
+        #   first iteration, and the re.match object for $SURNAME$ at the second one
+        # - at every iteration, m.group(0) is the string of the matching key, i.e.
+        #   it is "$NAME$" at the first iteration and "$SURNAME$" at the second one
+        # - keys[m.group(0)] is then equivalent, at the first iteration, to
+        #     keys["$NAME$"] == ["Gorilla", "Othername1", "Othername2"]
+        # - keys[.group(0)][i] is then equivalent, at the first iteration, to
+        #     keys["$NAME$"][i] == "Gorilla"
+        #   if we assume that "Gorilla" is on line i
+        # - at the second iteration, we will have:
+        #   keys[m.group(0)] == keys["$SURNAME$"] == ["Blushing", "Othersurname1",....]
+        #   keys[m.group(0)][i] = keys["$SURNAME$"][i] == "Blushing"
+        # - we only have two iterations for re.sub, because we only have two keys
+        #   in the body matching the regexp r'\$\w+\$'
+        # - so at the end all the values corresponding to the keys will be inserted
+        #   into the body_text in place of the key
+        # - at the next iteration of i, we are going to select a different line from
+        #   the parameter file, and generate a new email with different substitutions
         body = re.sub(r'\$\w+\$', lambda m: keys[m.group(0)][i], body_text)
         msg = email.message.EmailMessage()
         msg.set_content(body)
