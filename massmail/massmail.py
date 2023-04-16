@@ -92,7 +92,7 @@ def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, at
 
     return msgs
 
-def send_messages(msgs, force, server, tls, user, password):
+def send_messages(msgs, server, tls, user, password):
     for emailaddr in msgs:
         emails = [e.strip() for e in emailaddr.split(',')]
         print('This email will be sent to:', ', '.join(emails))
@@ -105,12 +105,11 @@ def send_messages(msgs, force, server, tls, user, password):
         body = msgs[emailaddr].get_body().get_content()
         print(f'\n{body}')
 
-    if not force:
-        # ask for confirmation before really sending stuff
-        if not click.confirm('Send the emails above?', default=None):
-            raise click.ClickException('Aborted! We did not send anything!')
+    # ask for confirmation before really sending stuff
+    if not click.confirm('Send the emails above?', default=None):
+        raise click.ClickException('Aborted! We did not send anything!')
 
-        print()
+    print()
 
     servername = server.split(':')[0]
     try:
@@ -218,14 +217,12 @@ class Email(click.ParamType):
                                              readable=True, path_type=pathlib.Path))
 
 ### INTERNAL OPTIONS ###
-# do not ask for confirmation before sending messages (to be used in tests)
-@click.option('-f', '--force', is_flag=True, default=False, hidden=True)
 # do not TLS encrypt connection to SMTP server (to be used in tests)
 @click.option('--tls/--no-tls', default=True, hidden=True)
 
 ### MAIN SCRIPT ###
 def main(fromh, subject, server, parameter_file, body_file, bcc, cc, inreply_to,
-         user, password, attachment, force, tls):
+         user, password, attachment, tls):
     """Send mass mail
 
     Example:
@@ -254,5 +251,5 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, inreply_to,
     """
     keys = parse_parameter_file(parameter_file)
     msgs = create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, attachment)
-    send_messages(msgs, force, server, tls, user, password)
+    send_messages(msgs, server, tls, user, password)
 

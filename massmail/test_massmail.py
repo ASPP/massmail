@@ -107,7 +107,7 @@ def cli(server, parm, body, opts={}, opts_list=[], errs=False):
     script = click.testing.CliRunner()
     # invoke the script, add the no-tls options (our SMTP does not support TLS)
     # and do not ask for confirmation to send emails
-    result = script.invoke(massmail, opts + ['--force', '--no-tls'])
+    result = script.invoke(massmail, opts + ['--no-tls'], input='y\n')
     if errs:
         # we expect errors, so do not interact with the SMTP server at all
         # and read the errors from the script instead
