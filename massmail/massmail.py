@@ -92,7 +92,7 @@ def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, at
 
     return msgs
 
-def send_messages(msgs, server, tls, user, password):
+def send_messages(msgs, server, user, password):
     for emailaddr in msgs:
         emails = [e.strip() for e in emailaddr.split(',')]
         print('This email will be sent to:', ', '.join(emails))
@@ -117,8 +117,10 @@ def send_messages(msgs, server, tls, user, password):
     except Exception as err:
         raise click.ClickException(f'Can not connect to "{servername}": {err}')
 
-    if tls:
+    try:
         server.starttls()
+    except Exception as err:
+        raise click.ClickException(f'Could not STARTTLS with "{servername}": {err}')
 
     if user is not None:
         try:
@@ -216,13 +218,9 @@ class Email(click.ParamType):
               multiple=True, type=click.Path(exists=True, dir_okay=False,
                                              readable=True, path_type=pathlib.Path))
 
-### INTERNAL OPTIONS ###
-# do not TLS encrypt connection to SMTP server (to be used in tests)
-@click.option('--tls/--no-tls', default=True, hidden=True)
-
 ### MAIN SCRIPT ###
 def main(fromh, subject, server, parameter_file, body_file, bcc, cc, inreply_to,
-         user, password, attachment, tls):
+         user, password, attachment):
     """Send mass mail
 
     Example:
@@ -251,5 +249,5 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, inreply_to,
     """
     keys = parse_parameter_file(parameter_file)
     msgs = create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, attachment)
-    send_messages(msgs, server, tls, user, password)
+    send_messages(msgs, server, user, password)
 

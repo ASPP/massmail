@@ -7,17 +7,112 @@ from massmail.massmail import main as massmail
 import click.testing
 import pytest
 
+# 4096 bit, valid until year 2123
+# generated with:
+# openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 36500 -nodes -subj '/CN=localhost'
+TLS_KEY="""-----BEGIN PRIVATE KEY-----
+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
+sBuZkVRS+PJe57phZv06aFFrv2VcXXg=
+-----END PRIVATE KEY-----
+"""
+
+TLS_CERT="""-----BEGIN CERTIFICATE-----
+MIIFCzCCAvOgAwIBAgIULLLAwLBYIJVgJ/39zhjZq+YnzkcwDQYJKoZIhvcNAQEL
+BQAwFDESMBAGA1UEAwwJbG9jYWxob3N0MCAXDTIzMDQxNjEyMjIyMFoYDzIxMjMw
+MzIzMTIyMjIwWjAUMRIwEAYDVQQDDAlsb2NhbGhvc3QwggIiMA0GCSqGSIb3DQEB
+AQUAA4ICDwAwggIKAoICAQDL+HYMRZ21L8EhaR0wBgiK9ww/51iNYSKVffXphnt7
+7B1o5A80m98B3v9epY48jE+Cbytl9PxlWHcnjlGWqO/xSFiETmJokRcBr1s8Ij0t
+ZYc2PuPwpLm+wN3rn1JX4wuskSXaxnDtUgZgt7GYIsVxpg5qIdvMiV/68sho0pG9
+Y4LSw+mwy2rIXOwpCWuV0PKOq64++oK2P1N7x+B0iyWHvQd+SLKK7yLQr2Sh5iPq
+14KJkBe2mWjoujtGxo8Cp4aYE1nVAF1VV0BxPsp8xsKo6DEcljIw3MfI4gdYUYax
+QPWmWb9141iMCoeCkAqrnSSUFdRf6QUhfesumNGyIx/d7iE5LsTT9i0kMdemM5R3
+b9IEwD6EXlJDOVKTZnw2tKqbBnzeIpeRF/qZHevOnhLc6AewJacEURFG2TNgkxCJ
+3SwFdzgIWbYz64J85Q8Bu3e0s4WUjl2XRgsaIDAYn6tYWndMbGiHfjx60R153lIx
+HWAu+bAsV15WDI+s1wJT7RjG0Xs37WEcGhK44eFdMtb9cKmWGFIFEhWx/6iFwRk/
+uPptE+QgMiuEkydUidw/6hQ0vJKnwFRCOcFari4SrUgpgMjKsxNyAosGvi+cE7U7
+XmtbOOpKGeL1y05JFnUucaQfuCLzaiiI1V/RHlaeU0ZNk3EQl09coNCzJtjxhHDv
+cwIDAQABo1MwUTAdBgNVHQ4EFgQU3PuRab4JVPITf+ICU5HVOMpW0gIwHwYDVR0j
+BBgwFoAU3PuRab4JVPITf+ICU5HVOMpW0gIwDwYDVR0TAQH/BAUwAwEB/zANBgkq
+hkiG9w0BAQsFAAOCAgEAOkEwnaMyxc7NdJedwk5sl6yoP/yY/rKDKA1yCEwgolkF
+k73F5VcaOcVhwoA/a2h8AwYOQTGv2YNZnRxLskooyKkLrbHoZn34/YO1kgaXAm/p
+mtiVsdaoFxUrcE7GXkJDTz4cC8wHc8BFrK6xESk8FYl07DCjIK9kFBzTGLV234kR
+OLpvFAoFbvVWlWDT3VLIGjP6EIp7JFE/neTpB8PguZ7dcNdgtoiWz19Pv3JYoWWj
+DTSZXJgu6OUjVxWC0T1VBz/uv5n9GNEjLa23hdzhztigmcrOKgrX43cTzNhnu62R
+6Tx1HUtkswvxNzhaEKt3TP6Jde7mP5J6DKi1HpfKuGDizFJzoEkmWQNfeCzWniw8
+W01qwU2xZ9AETQB2uAWoHF0vKRX8ZuzOBhK1vW9HVtSZFHJZ3OaS5/5TNvts8fvs
+eK5DIjBOr2RQqw+V9JYoBPr3t8EUE1cBSI6THlkWMDvXm5wal0tZOF7HGjCxXnHY
+Z7tS2M2dLHwsnOultNrtZn+zjSmmce2/YQzNqZcax5G9kTuU88OguqcDdB3pcWzY
+U1iY1r9bTWpfIASnDpYz3RbE9jp5+ZgNjhA6l5lXk9/CHBQWyxL9d2Khp+3IV0t9
+TfvhHNbB/2KiW9Si3G4bfcyPrH60O9yCfmbLDUjRgH2UjbOIefWKcKyAz/ZA5Y0=
+-----END CERTIFICATE-----
+"""
+
 # return a locally running SMTP server. This fixture kills the server after the
 # test run is finished, i.e. not after every test!
 # The resulting server runs at localhost:8025
 @pytest.fixture(scope="module")
-def server():
+def server(tmp_path_factory):
+    tlsdir = tmp_path_factory.mktemp('tlsdir')
+    key = tlsdir / 'key'
+    key.write_text(TLS_KEY)
+    cert = tlsdir / 'cert'
+    cert.write_text(TLS_CERT)
     server = subprocess.Popen([sys.executable,
                                '-m', 'aiosmtpd',
-                               '-n',
-                               '-d',
-                               '-l',  'localhost:8025',
-                               '-c', 'aiosmtpd.handlers.Debugging', 'stderr'],
+                               '--nosetuid',
+                               '--debug',
+                               '--tlscert', str(cert),
+                               '--tlskey', str(key),
+                               '--listen',  'localhost:8025',
+                               '--class', 'aiosmtpd.handlers.Debugging', 'stderr'],
                               stdin=None,
                               text=False,
                               stderr=subprocess.PIPE,
@@ -105,9 +200,7 @@ def cli(server, parm, body, opts={}, opts_list=[], errs=False):
     # now we have all default options + options passed by the test
     # instantiate a click Runner
     script = click.testing.CliRunner()
-    # invoke the script, add the no-tls options (our SMTP does not support TLS)
-    # and do not ask for confirmation to send emails
-    result = script.invoke(massmail, opts + ['--no-tls'], input='y\n')
+    result = script.invoke(massmail, opts, input='y\n')
     if errs:
         # we expect errors, so do not interact with the SMTP server at all
         # and read the errors from the script instead
