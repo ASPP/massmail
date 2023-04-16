@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import email
 import mimetypes
 import pathlib
@@ -304,3 +305,6 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, inreply_to,
     msgs = create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, attachment)
     send_messages(msgs, server, user, password)
 
+if __name__ == '__main__':
+    import sys
+    main(sys.argv[1:])
