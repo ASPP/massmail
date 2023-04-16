@@ -36,6 +36,17 @@ def parse_parameter_file(parameter_file):
         for i, key in enumerate(key_list):
             keys[key].append(values[i])
 
+    # validate email addresses
+    for idx, emails in enumerate(keys['$EMAIL$']):
+        # split into individual email addresses
+        validated = []
+        for email in emails.split(','):
+            # remove spaces
+            email = email.strip()
+            validated.append(validate_email_address(email,
+                                        errstr=f'Line {idx+1} in {name}:\n'))
+        # store the validated and normalized email addresses back into the dict
+        keys['$EMAIL$'][idx] = ','.join(validated)
     return keys
 
 def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to):
@@ -118,7 +129,7 @@ def validate_inreply_to(context, param, value):
         raise click.BadParameter(f"must be enclosed in brackets (<MESSAGE-ID>): {value}!")
     return value
 
-def validate_email_address(value):
+def validate_email_address(value, errstr=''):
     # we support two kind of email address:
     # 1. x@y.org
     # 2. Blushing Gorilla <x@y.org>
@@ -135,7 +146,7 @@ def validate_email_address(value):
     try:
         emailinfo = email_validator.validate_email(address, check_deliverability=False)
     except email_validator.EmailNotValidError as e:
-        raise click.BadParameter(f"{value!r} is not a valid email address:\n{str(e)}")
+        raise click.BadParameter(errstr+f"{value!r} is not a valid email address:\n{str(e)}")
     # support different versions of email-validator
     try:
         email = emailinfo.normalized # version >= 2.0

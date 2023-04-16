@@ -304,3 +304,10 @@ def test_validate_from(server, parm, body):
     assert 'is not a valid email' in cli(server, parm, body, opts=opts, errs=True)
     opts = {'--from' : 'Blushing Gorilla <invalid@email>'}
     assert 'is not a valid email' in cli(server, parm, body, opts=opts, errs=True)
+
+def test_invalid_email_in_parm(server, parm, body):
+    with parm.open('at') as parmf:
+        parmf.write('\nMario;Rossi;j@monkeys\n')
+    output = cli(server, parm, body, errs=True)
+    assert 'is not a valid email' in output
+    assert 'Line 2' in output
