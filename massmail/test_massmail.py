@@ -353,14 +353,14 @@ def test_too_many_values_in_parm(server, parm, body):
     with parm.open('at') as parmf:
         parmf.write('\nMario;Rossi;j@monkeys.com;too much\n')
     output = cli(server, parm, body, errs=True)
-    assert 'Line 2' in output
+    assert 'Line 3' in output
     assert '4 found instead of 3' in output
 
 def test_missing_values_in_parm(server, parm, body):
     with parm.open('at') as parmf:
         parmf.write('\nMario;j@monkeys.com\n')
     output = cli(server, parm, body, errs=True)
-    assert 'Line 2' in output
+    assert 'Line 3' in output
     assert '2 found instead of 3' in output
 
 def test_empty_values_in_parm(server, parm, body):
@@ -445,7 +445,7 @@ def test_invalid_email_in_parm(server, parm, body):
         parmf.write('\nMario;Rossi;j@monkeys\n')
     output = cli(server, parm, body, errs=True)
     assert 'is not a valid email' in output
-    assert 'Line 2' in output
+    assert 'Line 3' in output
 
 def test_rich_email_address_in_parm(server, parm, body):
     with parm.open('at') as parmf:
