@@ -38,7 +38,7 @@ def parse_parameter_file(parameter_file):
             continue
         values = [value.strip() for value in line.split(';')]
         if len(values) != len(key_list):
-            raise click.ClickException(f'Line {count+1} in {name} malformed: '
+            raise click.ClickException(f'Line {count+2} in {name} malformed: '
                              f'{len(values)} found instead of {len(key_list)}')
         for idx, value in enumerate(values):
             # do not allow for empty values
