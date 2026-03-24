@@ -124,6 +124,25 @@ def server(tmp_path_factory):
     yield server
     server.terminate()
 
+@pytest.fixture(scope="module")
+def server_notls(tmp_path_factory):
+    server = subprocess.Popen([sys.executable,
+                               '-m', 'aiosmtpd',
+                               '--nosetuid',
+                               '--debug',
+                               '--listen',  'localhost:8026',
+                               '--class', 'aiosmtpd.handlers.Debugging', 'stderr'],
+                              stdin=None,
+                              text=False,
+                              stderr=subprocess.PIPE,
+                              stdout=None,
+                              bufsize=0,
+                              env={'AIOSMTPD_CONTROLLER_TIMEOUT':'0'})
+    # give the smtp server 100 milliseconds to startup
+    time.sleep(0.1)
+    yield server
+    server.terminate()
+
 # return a "good" parameter file
 @pytest.fixture
 def parm(tmp_path):
@@ -401,6 +420,10 @@ def test_server_offline(server, parm, body):
 def test_server_wrong_authentication(server, parm, body):
     opts = {'--user' : 'noone', '--password' : 'nopass' }
     assert 'Can not login' in cli(server, parm, body, opts=opts, errs=True)
+
+def test_server_notls(server_notls, parm, body):
+    opts = {'--server' : 'localhost:8026' }
+    assert 'Could not STARTTLS' in cli(server_notls, parm, body, opts=opts, errs=True)
 
 def test_bcc(server, parm, body):
     opts = {'--bcc' : 'x@monkeys.com'}
