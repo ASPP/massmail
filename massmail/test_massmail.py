@@ -180,7 +180,7 @@ def parse_smtp(server):
     return protocol, emails
 
 # wrapper for running the massmail script and parse the SMTP server output
-def cli(server, parm, body, opts={}, opts_list=[], errs=False, output=False):
+def cli(server, parm, body, opts={}, opts_list=[], input='y\n', errs=False, output=False):
     # set default options
     options = {
                '--from'      : 'Blushing Gorilla <gorilla@jungle.com>',
@@ -201,7 +201,7 @@ def cli(server, parm, body, opts={}, opts_list=[], errs=False, output=False):
     # now we have all default options + options passed by the test
     # instantiate a click Runner
     script = click.testing.CliRunner()
-    result = script.invoke(massmail, opts, input='y\n')
+    result = script.invoke(massmail, opts, input=input)
     if errs:
         # we expect errors, so do not interact with the SMTP server at all
         # and read the errors from the script instead
@@ -264,6 +264,10 @@ def test_empty_lines_in_parm(server, parm, body):
     for idx, email in enumerate(emails):
         assert emails2[idx]['To'] == email['To']
     assert emails2[-1]['To'] == 'j@monkeys.com'
+
+def test_aborting_on_user_request(server, parm, body):
+    output = cli(server, parm, body, errs=True, input='n\n')
+    assert 'Aborted' in output
 
 def test_unicode_body_sending(server, parm, body):
     # add some unicode text to the body
