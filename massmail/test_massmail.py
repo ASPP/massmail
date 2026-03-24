@@ -255,6 +255,16 @@ def test_regular_sending(server, parm, body):
     assert 'Dear Alice Joyce' in text
     assert 'we kindly invite you to join us in the jungle' in text
 
+def test_empty_lines_in_parm(server, parm, body):
+    # insert an empty line in the parm file
+    protocol, emails = cli(server, parm, body)
+    with parm.open('at') as parmf:
+        parmf.write('\n\nJohn; Smith; j@monkeys.com\n')
+    _, emails2 = cli(server, parm, body)
+    for idx, email in enumerate(emails):
+        assert emails2[idx]['To'] == email['To']
+    assert emails2[-1]['To'] == 'j@monkeys.com'
+
 def test_unicode_body_sending(server, parm, body):
     # add some unicode text to the body
     with body.open('at') as bodyf:
