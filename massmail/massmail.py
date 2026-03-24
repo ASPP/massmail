@@ -221,10 +221,7 @@ def validate_email_address(value, errstr=''):
     except email_validator.EmailNotValidError as e:
         raise click.BadParameter(errstr+f"{value!r} is not a valid email address:\n{str(e)}")
     # support different versions of email-validator
-    try:
-        email = emailinfo.normalized # version >= 2.0
-    except AttributeError:
-        email = emailinfo.email # version <= 1.3
+    email = emailinfo.normalized # version >= 2.0
     if prefix:
         return f'{prefix}<{email}>'
     else:
