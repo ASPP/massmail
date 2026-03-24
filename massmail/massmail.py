@@ -298,5 +298,5 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, inreply_to,
     send_messages(msgs, server, user, password)
 
 if __name__ == '__main__':
-    import sys
-    main(sys.argv[1:])
+    main()
+
