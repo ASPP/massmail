@@ -203,28 +203,20 @@ def validate_inreply_to(context, param, value):
         raise click.BadParameter(f"must be enclosed in brackets (<MESSAGE-ID>): {value}!")
     return value
 
-def validate_email_address(value, errstr=''):
+def validate_email_address(email, errstr=''):
     # we support two kind of email address:
     # 1. x@y.org
     # 2. Blushing Gorilla <x@y.org>
-    if address := re.match(r'(.+)<(\S+)>', value):
-        # we are dealing with form 2
-        # extract the email address
-        prefix = address.group(1) # here we get "Blushing Gorilla "
-        address = address.group(2) # here we get x@y.org
-    else:
-        # we are dealing with form 1
-        prefix = None
-        address = value
-    # validate the email address
     try:
-        emailinfo = email_validator.validate_email(address, check_deliverability=False)
+        emailinfo = email_validator.validate_email(email,
+                                                   check_deliverability=False,
+                                                   allow_display_name=True)
     except email_validator.EmailNotValidError as e:
-        raise click.BadParameter(errstr+f"{value!r} is not a valid email address:\n{str(e)}")
-    # support different versions of email-validator
-    email = emailinfo.normalized # version >= 2.0
-    if prefix:
-        return f'{prefix}<{email}>'
+        raise click.BadParameter(errstr+f"{email!r} is not a valid email address:\n{str(e)}")
+    email = emailinfo.normalized
+    if emailinfo.display_name:
+        # always quote display_name so we support UTF8 chars in it out of the box
+        return f'"{emailinfo.display_name}" <{email}>'
     else:
         return email
 
