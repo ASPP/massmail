@@ -534,6 +534,72 @@ def test_unknown_attachment_type(server, parm, body, tmp_path):
     assert attachments[0].get_content_type() == 'application/octet-stream'
     assert attachments[0].get_content() == random_bytes
 
+def test_attachment_from_parm_file(server, parm, body, tmp_path):
+    # create two attachments
+    random_bytes = b'\x9diou\xd5\x12\xdf/\x03\xf8'
+    fl1 = tmp_path / 'dummy1'
+    fl1.write_bytes(random_bytes)
+    fl2 = tmp_path / 'dummy2'
+    fl2.write_bytes(random_bytes)
+
+    # the following is a trick to rewrite a file in-place
+    with fileinput.input(files=parm, inplace=True) as parmf:
+        for idx, line in enumerate(parmf):
+            if idx == 0:
+                print(line[:-1]+';$ATTACHMENT$')
+            else:
+                print(line[:-1]+f';{fl1.absolute()},{fl2.absolute()}')
+
+    opts = {'-d' : ';'}
+    protocol, emails = cli(server, parm, body, opts=opts)
+    attachments = list(emails[0].iter_attachments())
+    assert len(attachments) == 2
+    for attachment in attachments:
+        assert attachment.get_content_type() == 'application/octet-stream'
+        assert attachment.get_content() == random_bytes
+
+def test_attachment_from_parm_file_nonexistent(server, parm, body, tmp_path):
+    non_existing = tmp_path / 'not_there'
+    # the following is a trick to rewrite a file in-place
+    with fileinput.input(files=parm, inplace=True) as parmf:
+        for idx, line in enumerate(parmf):
+            if idx == 0:
+                print(line[:-1]+';$ATTACHMENT$')
+            else:
+                print(line[:-1]+f';{non_existing.absolute()}')
+
+    opts = {'-d' : ';'}
+    output = cli(server, parm, body, opts=opts, errs=True)
+    assert f"File '{non_existing.absolute()}' does not exist"
+
+def test_attachment_combined(server, parm, body, tmp_path):
+    # create two attachments
+    random_bytes = [b'\x9diou\xd5\x12\xdf/\x03\xf8',
+                    b'\x8diou\xd5\x12\xdf/\x03\xf8']
+    fl1 = tmp_path / 'dummy1'
+    fl1.write_bytes(random_bytes[0])
+
+    fl2 = tmp_path / 'dummy2'
+    fl2.write_bytes(random_bytes[1])
+
+    # the following is a trick to rewrite a file in-place
+    with fileinput.input(files=parm, inplace=True) as parmf:
+        for idx, line in enumerate(parmf):
+            if idx == 0:
+                print(line[:-1]+';$ATTACHMENT$')
+            else:
+                print(line[:-1]+f';{fl1.absolute()}')
+
+    opts = {'-d' : ';', '-a' : f'{fl2.absolute()}'}
+    protocol, emails = cli(server, parm, body, opts=opts)
+    attachments = list(emails[0].iter_attachments())
+    assert len(attachments) == 2
+    output_bytes = []
+    for i, attachment in enumerate(attachments):
+        assert attachment.get_content_type() == 'application/octet-stream'
+        output_bytes.append(attachment.get_content())
+    assert set(random_bytes) == set(output_bytes)
+
 def test_different_csv_dialect(parm, tmp_path):
     keys = parse_parameter_file(parm)
     # switch dialect
