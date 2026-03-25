@@ -128,14 +128,17 @@ def server(tmp_path_factory):
                               close_fds=False,
                               env=env)
     # wait for server to startup
-    import time
-    time.sleep(2)
+    # import time
+    # time.sleep(0.2)
     # assert False
-    assert b'Server is listening on' in server.stderr.readline()
-    yield server
+    try:
+        l = server.stderr.readline()
+        assert b'Server is listening on' in l, f"Problem in line: {l}"
+        yield server
     # print(server.stdout)
     # print(server.stderr)
-    server.terminate()
+    finally:
+        server.terminate()
 
 @pytest.fixture(scope="module")
 def server_notls(tmp_path_factory):
