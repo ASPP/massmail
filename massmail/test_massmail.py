@@ -415,7 +415,7 @@ def test_unknown_key_in_body(server, parm, body):
     with body.open('at', encoding='utf8') as bodyf:
         bodyf.write('\n$UNKNOWN$\n')
     output = cli(server, parm, body, errs=True)
-    assert 'Unknown key in body' in output
+    assert 'Unknown key(s) in body' in output
     assert '$UNKNOWN$' in output
 
 def test_no_key_in_body(server, parm, body):

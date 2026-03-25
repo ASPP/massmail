@@ -15,6 +15,8 @@ import click
 import email_validator
 
 
+KEYREGX = re.compile(r'(\$\w+\$)+')
+
 def parse_parameter_file(parameter_file, delimiter=None):
     name = parameter_file.name
     # sniff the CSV dialect, so that we can support different CSV formats
@@ -40,7 +42,7 @@ def parse_parameter_file(parameter_file, delimiter=None):
         if not key.startswith('$') or not key.endswith('$'):
             raise click.ClickException(f'Keyword {key=} malformed in {name}: should be $KEY$')
 
-    keys = collections.defaultdict(list)
+    items = []
     for count, row in enumerate(reader):
         errstr = f'Line {count+2} in {name} malformed'
         # verify that we don't have too many values
@@ -51,25 +53,38 @@ def parse_parameter_file(parameter_file, delimiter=None):
             values = list(row.values())
             values.remove(None)
             raise click.ClickException(f'{errstr}: {len(values)} found instead of {len(reader.fieldnames)}')
+        item = {}
         for key, value in row.items():
             value_str = value.strip()
             # validate email addresses
             if key == '$EMAIL$':
                 validated_emails = [validate_email_address(email.strip(), errstr) for email in value_str.split(',')]
                 value_str = ','.join(validated_emails)
-            keys[key].append(value_str)
+            item[key] = value_str
+        items.append(item)
 
-    # return a normal dict, and not a defaultdict, so that access to unknown keys later
-    # in the code throw the appropriate KeyError instead of returning an empty list
-    return dict(keys)
+    return reader.fieldnames, items
 
 
-def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, attachment):
-    nmsgs = len(keys['$EMAIL$'])
-
-    msgs = {}
+def parse_body(body_file, keys):
+    # expected keys from the parameter file
+    parm_keys = set(keys)
+    # keys found in the body
     body_text = body_file.read()
-    warned_once = False
+    body_keys = set(KEYREGX.findall(body_text))
+
+    if len(body_keys) == 0:
+        rprint(f'[bold][red]WARNING:[/red] no keys found in body file {body_file.name}[/bold]')
+    # check that there are no unkown keys in the body
+    if diff := (body_keys - parm_keys):
+        raise click.ClickException(f'Unknown key(s) in body file {body_file.name}: {diff}')
+
+    return body_text
+
+
+
+def create_email_bodies(body_text, items, fromh, subject, cc, bcc, inreply_to, attachment):
+
     # collect attachments once and then attach them to every single message
     attachments = {}
     for path in attachment:
@@ -82,7 +97,7 @@ def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, at
         data = path.read_bytes()
         attachments[path.name] = (data, maintype, subtype)
 
-    for i, emails in enumerate(keys['$EMAIL$']):
+    for i, item in enumerate(items):
         # find keywords and substitute with values
 
         # The following line does this:
@@ -110,16 +125,7 @@ def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, at
         #   into the body_text in place of the key
         # - at the next iteration of i, we are going to select a different line from
         #   the parameter file, and generate a new email with different substitutions
-        try:
-            body = re.sub(r'\$\w+\$', lambda m: keys[m.group(0)][i], body_text)
-        except KeyError as err:
-            # an unknown key was detected
-            raise click.ClickException(f'Unknown key in body file {body_file.name}: {err}')
-        # warn if no keys were found
-        if body == body_text and not warned_once:
-            rprint(f'[bold][red]WARNING:[/red] no keys found in body file {body_file.name}[/bold]')
-            warned_once = True
-
+        body = KEYREGX.sub(lambda m: item[m.group(0)], body_text)
         msg = email.message.EmailMessage()
         try:
             # check if the body is pure ASCII
@@ -131,7 +137,7 @@ def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, at
             # like for example:
             # https://github.com/python/cpython/issues/105285
             msg.set_content(body, charset='utf-8', cte='base64')
-        msg['To'] = emails
+        msg['To'] = item['$EMAIL$']
         msg['From'] = fromh
         msg['Subject'] = subject
         if inreply_to:
@@ -149,9 +155,8 @@ def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, at
             msg.add_attachment(data, filename=name, maintype=mtyp, subtype=styp)
         if i == 0:
             # tease the first message
-            tease(msg, nmsgs)
+            tease(msg, len(items))
         yield msg
-        #msgs[emails] = msg
 
     #return msgs
 
@@ -201,7 +206,6 @@ def send_messages(msgs, server, user, password, nmsgs):
         except Exception as err:
             raise click.ClickException(f'Can not login to {servername}: {err}')
 
-    print()
     progress = rich.progress.Progress()
     track = progress.add_task("[green]Sending:[/green]", total=nmsgs)
     try:
@@ -314,18 +318,13 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, delimiter, 
 
       Values from the parameter file (parm.csv) are inserted in the body text (body.txt). The keyword $EMAIL$ must always be present in the parameter files and contains a comma separated list of email addresses. Keep in mind shell escaping when setting headers with white spaces or special characters. Both files must be UTF8 encoded!
     """
-    # collect parameters
-    keys = parse_parameter_file(parameter_file, delimiter)
+    # collect parameters and body
+    keys, items = parse_parameter_file(parameter_file, delimiter)
+    body = parse_body(body_file, keys)
 
     # create messages
-    msgs = create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, attachment)
-
-    # show one example
-    #tease(msgs)
-
-    print()
+    msgs = create_email_bodies(body, items, fromh, subject, cc, bcc, inreply_to, attachment)
 
     # do the real work
-    nmsgs = len(keys['$EMAIL$'])
-    send_messages(msgs, server, user, password, nmsgs=nmsgs)
+    send_messages(msgs, server, user, password, nmsgs=len(items))
 
