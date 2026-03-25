@@ -1,9 +1,12 @@
+import csv
 import email as email_module
+import fileinput
 import os
 import subprocess
 import sys
 
 from massmail.massmail import main as massmail
+from massmail.massmail import parse_parameter_file
 import click.testing
 import pytest
 
@@ -393,14 +396,14 @@ def test_missing_email_in_parm(server, parm, body):
 def test_too_many_values_in_parm(server, parm, body):
     with parm.open('at', encoding='utf8') as parmf:
         parmf.write('\nMario;Rossi;j@monkeys.com;too much\n')
-    output = cli(server, parm, body, errs=True)
+    output = cli(server, parm, body, opts = {'-d':';'}, errs=True)
     assert 'Line 3' in output
     assert '4 found instead of 3' in output
 
 def test_missing_values_in_parm(server, parm, body):
     with parm.open('at', encoding='utf8') as parmf:
         parmf.write('\nMario;j@monkeys.com\n')
-    output = cli(server, parm, body, errs=True)
+    output = cli(server, parm, body, opts = {'-d':';'}, errs=True)
     assert 'Line 3' in output
     assert '2 found instead of 3' in output
 
@@ -527,3 +530,28 @@ def test_unknown_attachment_type(server, parm, body, tmp_path):
     attachments = list(emails[0].iter_attachments())
     assert attachments[0].get_content_type() == 'application/octet-stream'
     assert attachments[0].get_content() == random_bytes
+
+def test_different_csv_dialect(parm, tmp_path):
+    keys = parse_parameter_file(parm)
+    # switch dialect
+    with parm.open('rt', encoding='utf8', errors='strict', newline='') as parmf:
+        reader = csv.DictReader(parmf, delimiter=';')
+        newparm = tmp_path / 'newparm.csv'
+        with newparm.open('wt', encoding='utf8', errors='strict', newline='') as newparmf:
+            writer = csv.DictWriter(newparmf, fieldnames=reader.fieldnames, delimiter=',')
+            writer.writeheader()
+            [writer.writerow(row) for row in reader]
+
+    assert keys == parse_parameter_file(newparm)
+
+def test_confusing_csv(server, parm, body, tmp_path):
+    # the following is a trick to rewrite a file in-place
+    with fileinput.input(files=parm, inplace=True) as parmf:
+        for idx, line in enumerate(parmf):
+            if idx == 0:
+                print(line.replace(';', ',', count=1))
+            else:
+                print(line)
+
+    output = cli(server, parm, body, errs=True)
+    assert 'Could not automatically guess CSV format' in output

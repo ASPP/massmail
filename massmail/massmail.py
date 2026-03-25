@@ -15,14 +15,22 @@ import click
 import email_validator
 
 
-def parse_parameter_file(parameter_file):
+def parse_parameter_file(parameter_file, delimiter=None):
     name = parameter_file.name
     # sniff the CSV dialect, so that we can support different CSV formats
-    # note: the newline argument is important, or the dialect sniffing does not
-    # work properly
+    # note: the newline argument is important, or the dialect sniffing does not work properly
     # always assume UTF8
-    reader = csv.DictReader(parameter_file.open('rt', encoding='utf8',
-                            errors='strict', newline=''), delimiter=';')
+    parm = parameter_file.open('rt', encoding='utf8', errors='strict', newline='')
+    if delimiter is None:
+        try:
+            dialect = csv.Sniffer().sniff(parm.read())
+            reader_opts = {'dialect' : dialect}
+            parm.seek(0)
+        except csv.Error as exc:
+            raise click.BadParameter(f'Could not automatically guess CSV format, please specify the deilimiter with -d!')
+    else:
+        reader_opts = {'delimiter' : delimiter}
+    reader = csv.DictReader(parm, **reader_opts) #delimiter=';')
 
     # fail immediately if no EMAIL keyword is found
     if '$EMAIL$' not in reader.fieldnames:
@@ -259,6 +267,7 @@ class Email(click.ParamType):
 ### OPTIONALS ###
 @click.option('-b', '--bcc', type=Email(), help='set the Bcc: header')
 @click.option('-c', '--cc', type=Email(), help='set the Cc: header')
+@click.option('-d', '--delimiter', type=str, default=None, help='set the delimiter for the CSV file')
 @click.option('-r', '--inreply-to', callback=validate_inreply_to, metavar="<ID>",
               help='set the In-Reply-to: header. Set it to a Message-ID.')
 @click.option('-u', '--user', help='SMTP user name. If not set, use anonymous SMTP connection')
@@ -268,7 +277,7 @@ class Email(click.ParamType):
                                              readable=True, path_type=pathlib.Path))
 
 ### MAIN SCRIPT ###
-def main(fromh, subject, server, parameter_file, body_file, bcc, cc, inreply_to,
+def main(fromh, subject, server, parameter_file, body_file, bcc, cc, delimiter, inreply_to,
          user, password, attachment):
     """Send mass mail
 
@@ -277,7 +286,7 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, inreply_to,
      \b
      massmail --from "Blushing Gorilla <gorilla@jungle.com>" --subject "Invitation to the jungle" --server mail.example.com:587 --user user@example.com -P parm.csv -B body.txt
 
-    parm.csv (semi-colon separated):
+    parm.csv:
 
      \b
      $NAME$; $SURNAME$; $EMAIL$
@@ -296,7 +305,7 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, inreply_to,
 
       Values from the parameter file (parm.csv) are inserted in the body text (body.txt). The keyword $EMAIL$ must always be present in the parameter files and contains a comma separated list of email addresses. Keep in mind shell escaping when setting headers with white spaces or special characters. Both files must be UTF8 encoded!
     """
-    keys = parse_parameter_file(parameter_file)
+    keys = parse_parameter_file(parameter_file, delimiter)
     msgs = create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, attachment)
     send_messages(msgs, server, user, password)
 
