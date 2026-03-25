@@ -128,6 +128,9 @@ def server(tmp_path_factory):
                               close_fds=False,
                               env=env)
     # wait for server to startup
+    import time
+    time.sleep(10)
+    # assert False
     assert b'Server is listening on' in server.stderr.readline()
     yield server
     print(server.stdout)
