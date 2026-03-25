@@ -149,8 +149,8 @@ def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, at
 
     return msgs
 
-def send_messages(msgs, server, user, password):
-    # print one example email for confirmation
+
+def tease(msgs):
     ex_addr = list(msgs.keys())[0]
     msg = msgs[ex_addr]
     panel = []
@@ -167,14 +167,8 @@ def send_messages(msgs, server, user, password):
     panel.append(f'\n{body}')
     rprint(rich.panel.Panel.fit('\n'.join(panel)))
 
-    # ask for confirmation before really sending stuff
-    rprint(f'[bold]About to send {len(msgs)} email messages like the one above…[/bold]')
-    if not rich.prompt.Confirm.ask(f'[bold]Send?[/bold]'):
-        #if not click.confirm('Send the emails above?', default=None):
-        raise click.ClickException('Aborted! We did not send anything!')
 
-    print()
-
+def send_messages(msgs, server, user, password):
     servername = server.split(':')[0]
     try:
         server = smtplib.SMTP(server)
@@ -304,7 +298,22 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, delimiter, 
 
       Values from the parameter file (parm.csv) are inserted in the body text (body.txt). The keyword $EMAIL$ must always be present in the parameter files and contains a comma separated list of email addresses. Keep in mind shell escaping when setting headers with white spaces or special characters. Both files must be UTF8 encoded!
     """
+    # collect parameters
     keys = parse_parameter_file(parameter_file, delimiter)
+
+    # create messages
     msgs = create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, attachment)
+
+    # show one example
+    tease(msgs)
+
+    # ask for confirmation before really sending stuff
+    rprint(f'[bold]About to send {len(msgs)} email messages like the one above…[/bold]')
+    if not rich.prompt.Confirm.ask(f'[bold]Send?[/bold]'):
+        #if not click.confirm('Send the emails above?', default=None):
+        raise click.ClickException('Aborted! We did not send anything!')
+    print()
+
+    # do the real work
     send_messages(msgs, server, user, password)
 
