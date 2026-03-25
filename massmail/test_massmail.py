@@ -129,12 +129,12 @@ def server(tmp_path_factory):
                               env=env)
     # wait for server to startup
     import time
-    time.sleep(10)
+    time.sleep(2)
     # assert False
     assert b'Server is listening on' in server.stderr.readline()
     yield server
-    print(server.stdout)
-    print(server.stderr)
+    # print(server.stdout)
+    # print(server.stderr)
     server.terminate()
 
 @pytest.fixture(scope="module")
