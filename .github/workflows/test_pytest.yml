@@ -27,6 +27,6 @@ jobs:
         python -m pip install -e .[test]
     - name: Test with pytest
       run: |
-        python -m pytest -s -v --cov=massmail --cov-report=term-missing
+        python -m pytest -s -vvv --cov=massmail --cov-report=term-missing
       timeout-minutes: 8
 
