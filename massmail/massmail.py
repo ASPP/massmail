@@ -228,7 +228,7 @@ def send_messages(msgs, server, nmsgs):
         for idx, msg in enumerate(msgs):
             if idx == 0:
                 progress.start()
-            rprint(f'Sending to: [bold]{msg['To']}[/bold]')
+            rprint(f"Sending to: [bold]{msg['To']}[/bold]")
             try:
                 out = server.send_message(msg)
             except Exception as err:
