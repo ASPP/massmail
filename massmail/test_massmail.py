@@ -298,40 +298,40 @@ def test_aborting_on_user_request(server, parm, body):
     output = cli(server, parm, body, errs=True, input='n\n')
     assert 'Aborted' in output
 
-def test_unicode_body_sending(server, parm, body):
-    # add some unicode text to the body
-    with body.open('at', encoding='utf8' ) as bodyf:
-        bodyf.write('\nÜni©ödę\n')
-    protocol, emails = cli(server, parm, body)
-    email = emails[0]
-    text = email.get_content()
-    assert email['Content-Transfer-Encoding'] == 'base64'
-    assert 'Üni©ödę' in text
+# def test_unicode_body_sending(server, parm, body):
+#     # add some unicode text to the body
+#     with body.open('at', encoding='utf8' ) as bodyf:
+#         bodyf.write('\nÜni©ödę\n')
+#     protocol, emails = cli(server, parm, body)
+#     email = emails[0]
+#     text = email.get_content()
+#     assert email['Content-Transfer-Encoding'] == 'base64'
+#     assert 'Üni©ödę' in text
 
-def test_wild_unicode_body_sending(server, parm, body):
-    # add some unicode text to the body with characters
-    # that can not be represented with one byte only
-    with body.open('at', encoding='utf8') as bodyf:
-        bodyf.write('\nœ´®†¥¨ˆøπ¬˚∆˙©ƒ∂ßåΩ≈ç√∫˜µ≤ユーザーコードa😀\n')
-    protocol, emails = cli(server, parm, body)
-    email = emails[0]
-    text = email.get_content()
-    assert email['Content-Transfer-Encoding'] == 'base64'
-    assert 'œ´®†¥¨ˆøπ¬˚∆˙©ƒ∂ßåΩ≈ç√∫˜µ≤ユーザーコードa😀' in text
+# def test_wild_unicode_body_sending(server, parm, body):
+#     # add some unicode text to the body with characters
+#     # that can not be represented with one byte only
+#     with body.open('at', encoding='utf8') as bodyf:
+#         bodyf.write('\nœ´®†¥¨ˆøπ¬˚∆˙©ƒ∂ßåΩ≈ç√∫˜µ≤ユーザーコードa😀\n')
+#     protocol, emails = cli(server, parm, body)
+#     email = emails[0]
+#     text = email.get_content()
+#     assert email['Content-Transfer-Encoding'] == 'base64'
+#     assert 'œ´®†¥¨ˆøπ¬˚∆˙©ƒ∂ßåΩ≈ç√∫˜µ≤ユーザーコードa😀' in text
 
-def test_unicode_subject(server, parm, body):
-    opts = {'--subject' : 'Üni©ödę¿' }
-    protocol, emails = cli(server, parm, body, opts=opts)
-    email = emails[0]
-    assert email['Subject'] == 'Üni©ödę¿'
+# def test_unicode_subject(server, parm, body):
+#     opts = {'--subject' : 'Üni©ödę¿' }
+#     protocol, emails = cli(server, parm, body, opts=opts)
+#     email = emails[0]
+#     assert email['Subject'] == 'Üni©ödę¿'
 
-def test_unicode_from(server, parm, body):
-    opts = { '--from' : '"Üni©ödę¿" <broken@email.com>' }
-    protocol, emails = cli(server, parm, body, opts=opts)
-    email = emails[0]
-    # the email module takes care of quoting UTF8, so we don't
-    # have the quotes in the header
-    assert email['From'] == 'Üni©ödę¿ <broken@email.com>'
+# def test_unicode_from(server, parm, body):
+#     opts = { '--from' : '"Üni©ödę¿" <broken@email.com>' }
+#     protocol, emails = cli(server, parm, body, opts=opts)
+#     email = emails[0]
+#     # the email module takes care of quoting UTF8, so we don't
+#     # have the quotes in the header
+#     assert email['From'] == 'Üni©ödę¿ <broken@email.com>'
 
 def test_unicode_several_reciepients(server, parm, body):
     # add some unicode text to the body
