@@ -65,6 +65,8 @@ def parse_parameter_file(parameter_file, delimiter=None):
 
 
 def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, attachment):
+    nmsgs = len(keys['$EMAIL$'])
+
     msgs = {}
     body_text = body_file.read()
     warned_once = False
@@ -145,14 +147,16 @@ def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, at
         # add attachments
         for name, (data, mtyp, styp) in attachments.items():
             msg.add_attachment(data, filename=name, maintype=mtyp, subtype=styp)
-        msgs[emails] = msg
+        if i == 0:
+            # tease the first message
+            tease(msg, nmsgs)
+        yield msg
+        #msgs[emails] = msg
 
-    return msgs
+    #return msgs
 
 
-def tease(msgs):
-    ex_addr = list(msgs.keys())[0]
-    msg = msgs[ex_addr]
+def tease(msg, nmsgs):
     panel = []
     for hdr, value in msg.items():
         if hdr in ('From', 'Subject', 'Cc', 'Bcc', 'In-Reply-To'):
@@ -166,9 +170,14 @@ def tease(msgs):
     body = msg.get_body().get_content()
     panel.append(f'\n{body}')
     rprint(rich.panel.Panel.fit('\n'.join(panel)))
+    # ask for confirmation before really sending stuff
+    rprint(f'[bold]About to send {nmsgs} email messages like the one above…[/bold]')
+    if not rich.prompt.Confirm.ask(f'[bold]Send?[/bold]'):
+        #if not click.confirm('Send the emails above?', default=None):
+        raise click.ClickException('Aborted! We did not send anything!')
 
 
-def send_messages(msgs, server, user, password):
+def send_messages(msgs, server, user, password, nmsgs):
     servername = server.split(':')[0]
     try:
         server = smtplib.SMTP(server)
@@ -193,16 +202,23 @@ def send_messages(msgs, server, user, password):
             raise click.ClickException(f'Can not login to {servername}: {err}')
 
     print()
+    progress = rich.progress.Progress()
+    track = progress.add_task("[green]Sending:[/green]", total=nmsgs)
+    try:
+        for idx, msg in enumerate(msgs):
+            if idx == 0:
+                progress.start()
+            rprint(f'Sending to: [bold]{msg['To']}[/bold]')
+            try:
+                out = server.send_message(msg)
+            except Exception as err:
+                raise click.ClickException(f'Can not send email: {err}')
 
-    for emailaddr in rich.progress.track(msgs, description="[green]Sending:[/green]"):
-        rprint(f'Sending to: [bold]{emailaddr}[/bold]')
-        try:
-            out = server.send_message(msgs[emailaddr])
-        except Exception as err:
-            raise click.ClickException(f'Can not send email: {err}')
-
-        if len(out) != 0:
-            raise click.ClickException(f'Can not send email: {err}')
+            if len(out) != 0:
+                raise click.ClickException(f'Can not send email: {err}')
+            progress.update(track, advance=1)
+    finally:
+        progress.stop()
 
     server.quit()
 
@@ -305,15 +321,11 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, delimiter, 
     msgs = create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, attachment)
 
     # show one example
-    tease(msgs)
+    #tease(msgs)
 
-    # ask for confirmation before really sending stuff
-    rprint(f'[bold]About to send {len(msgs)} email messages like the one above…[/bold]')
-    if not rich.prompt.Confirm.ask(f'[bold]Send?[/bold]'):
-        #if not click.confirm('Send the emails above?', default=None):
-        raise click.ClickException('Aborted! We did not send anything!')
     print()
 
     # do the real work
-    send_messages(msgs, server, user, password)
+    nmsgs = len(keys['$EMAIL$'])
+    send_messages(msgs, server, user, password, nmsgs=nmsgs)
 
