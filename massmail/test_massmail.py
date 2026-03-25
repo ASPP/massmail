@@ -128,9 +128,7 @@ def server(tmp_path_factory):
                               close_fds=False,
                               env=env)
     # wait for server to startup
-    line = server.stderr.readline()
-    print(line)
-    assert b'Server is listening on' in line
+    assert b'Server is listening on' in server.stderr.readline()
     yield server
     server.terminate()
 
@@ -270,7 +268,7 @@ def test_regular_sending(server, parm, body):
     assert 'recip: donkeys@jungle.com' in protocol
 
     # email is ASCII, so the transfer encoding should be 7bit
-    #assert email['Content-Transfer-Encoding'] == '7bit'
+    assert email['Content-Transfer-Encoding'] == '7bit'
 
     # check that the headers are correct
     assert email['From'] == 'Blushing Gorilla <gorilla@jungle.com>'
@@ -303,28 +301,22 @@ def test_aborting_on_user_request(server, parm, body):
 def test_unicode_body_sending(server, parm, body):
     # add some unicode text to the body
     with body.open('at', encoding='utf8' ) as bodyf:
-        # bodyf.write('\nÜni©ödę¿\n')
-        bodyf.write('\n\xdcni\xa9\xf6d\u0119\xbf\n')
+        bodyf.write('\nÜni©ödę\n')
     protocol, emails = cli(server, parm, body)
     email = emails[0]
-    # unicode characters force the transfer encoding to  8bit
-    # assert email['Content-Transfer-Encoding'] == '8bit'
     text = email.get_content()
-    #assert 'Üni©ödę¿' in text
-    assert '\xdcni\xa9\xf6d\u0119\xbf' in text
+    assert email['Content-Transfer-Encoding'] == 'base64'
+    assert 'Üni©ödę' in text
 
 def test_wild_unicode_body_sending(server, parm, body):
-    # add some unicode text to the body
+    # add some unicode text to the body with characters
+    # that can not be represented with one byte only
     with body.open('at', encoding='utf8') as bodyf:
         bodyf.write('\nœ´®†¥¨ˆøπ¬˚∆˙©ƒ∂ßåΩ≈ç√∫˜µ≤ユーザーコードa😀\n')
     protocol, emails = cli(server, parm, body)
     email = emails[0]
-    # because we use unicode characters that don't fit in one byte,
-    # the email will be encoded in base64 for tranfer
-    # assert email['Content-Transfer-Encoding'] == 'base64'
-    # we have to trust the internal email_module machinery
-    # to perform the proper decoding
     text = email.get_content()
+    assert email['Content-Transfer-Encoding'] == 'base64'
     assert 'œ´®†¥¨ˆøπ¬˚∆˙©ƒ∂ßåΩ≈ç√∫˜µ≤ユーザーコードa😀' in text
 
 def test_unicode_subject(server, parm, body):
@@ -360,11 +352,9 @@ def test_unicode_several_reciepients(server, parm, body):
 def test_unicode_parm(server, parm, body):
     # add some unicode text to the body
     with parm.open('at', encoding='utf8') as parmf:
-        #parmf.write('\nÜni©ödę¿; Smith; j@monkeys.com\n')
-        parmf.write('\n\xdcni\xa9\xf6d\u0119\xbf; Smith; j@monkeys.com\n')
+        parmf.write('\nÜni©ödę¿; Smith; j@monkeys.com\n')
     protocol, emails = cli(server, parm, body)
-    #assert 'Dear Üni©ödę¿ Smith' in emails[1].get_content()
-    assert 'Dear \xdcni\xa9\xf6d\u0119\xbf Smith' in emails[1].get_content()
+    assert 'Dear Üni©ödę¿ Smith' in emails[1].get_content()
 
 def test_multiple_recipients_in_one_row(server, parm, body):
     # add some unicode text to the body

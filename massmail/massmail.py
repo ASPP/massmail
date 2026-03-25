@@ -112,7 +112,16 @@ def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, at
             warned_once = True
 
         msg = email.message.EmailMessage()
-        msg.set_content(body)
+        try:
+            # check if the body is pure ASCII
+            body.encode('ascii')
+            # then pass it as is to the email module machinery
+            msg.set_content(body)
+        except UnicodeEncodeError:
+            # force CTE to be base64, so that we do not incur into strange unicode bugs
+            # like for example:
+            # https://github.com/python/cpython/issues/105285
+            msg.set_content(body, charset='utf-8', cte='base64')
         msg['To'] = emails
         msg['From'] = fromh
         msg['Subject'] = subject
