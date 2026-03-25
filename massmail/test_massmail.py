@@ -219,7 +219,7 @@ def cli(server, parm, body, opts={}, opts_list=[], input='y\n', errs=False, outp
     opts.extend(opts_list)
     # now we have all default options + options passed by the test
     # instantiate a click Runner
-    script = click.testing.CliRunner()
+    script = click.testing.CliRunner(catch_exceptions=False)
     result = script.invoke(massmail, opts, input=input)
     if errs:
         # we expect errors, so do not interact with the SMTP server at all
