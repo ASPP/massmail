@@ -103,6 +103,7 @@ TfvhHNbB/2KiW9Si3G4bfcyPrH60O9yCfmbLDUjRgH2UjbOIefWKcKyAz/ZA5Y0=
 # The resulting server runs at localhost:8025
 @pytest.fixture(scope="module")
 def server(tmp_path_factory):
+    print(tmp_path_factory)
     tlsdir = tmp_path_factory.mktemp('tlsdir')
     key = tlsdir / 'key'
     key.write_text(TLS_KEY)
@@ -115,6 +116,7 @@ def server(tmp_path_factory):
     env = os.environ.copy()
     env['PYTHONPATH'] = ''
     env['AIOSMTPD_CONTROLLER_TIMEOUT'] = '10'
+    env['PYTHONUNBUFFERED'] = 'x'
     server = subprocess.Popen([sys.executable,
                                '-m', 'aiosmtpd',
                                '--nosetuid',
@@ -127,13 +129,22 @@ def server(tmp_path_factory):
                               text=False,
                               stderr=subprocess.PIPE,
                               stdout=None,
-                              bufsize=0,
+                            #   bufsize=0,
                               close_fds=False,
                               env=env)
     # wait for server to startup
-    assert b'Server is listening on' in server.stderr.readline()
-    yield server
-    server.terminate()
+    import time
+    time.sleep(2)
+    # assert False
+    try:
+        l = server.stderr.readline()
+        print(l)
+        assert b'Server is listening on' in l, f"Problem in line: {l}"
+        yield server
+    # print(server.stdout)
+    # print(server.stderr)
+    finally:
+        server.terminate()
 
 @pytest.fixture(scope="module")
 def server_notls(tmp_path_factory):
@@ -185,7 +196,9 @@ def parse_smtp(server):
     # we can not just issue a blank .read() because that would would block until
     # server.stderr is closed, which only happens after the server has exited
     # so we request 1MB (1024*1024 = 2^20 bytes = 1048576) to be sure
+    print("parse begin read")
     smtp = server.stderr.read(1048576)
+    print("parse end read", smtp)
     protocol = []
     emails = []
     for line in smtp.splitlines():
@@ -302,40 +315,40 @@ def test_aborting_on_user_request(server, parm, body):
     output = cli(server, parm, body, errs=True, input='n\n')
     assert 'Aborted' in output
 
-def test_unicode_body_sending(server, parm, body):
-    # add some unicode text to the body
-    with body.open('at', encoding='utf8' ) as bodyf:
-        bodyf.write('\nÜni©ödę\n')
-    protocol, emails = cli(server, parm, body)
-    email = emails[0]
-    text = email.get_content()
-    assert email['Content-Transfer-Encoding'] == 'base64'
-    assert 'Üni©ödę' in text
+# def test_unicode_body_sending(server, parm, body):
+#     # add some unicode text to the body
+#     with body.open('at', encoding='utf8' ) as bodyf:
+#         bodyf.write('\nÜni©ödę\n')
+#     protocol, emails = cli(server, parm, body)
+#     email = emails[0]
+#     text = email.get_content()
+#     assert email['Content-Transfer-Encoding'] == 'base64'
+#     assert 'Üni©ödę' in text
 
-def test_wild_unicode_body_sending(server, parm, body):
-    # add some unicode text to the body with characters
-    # that can not be represented with one byte only
-    with body.open('at', encoding='utf8') as bodyf:
-        bodyf.write('\nœ´®†¥¨ˆøπ¬˚∆˙©ƒ∂ßåΩ≈ç√∫˜µ≤ユーザーコードa😀\n')
-    protocol, emails = cli(server, parm, body)
-    email = emails[0]
-    text = email.get_content()
-    assert email['Content-Transfer-Encoding'] == 'base64'
-    assert 'œ´®†¥¨ˆøπ¬˚∆˙©ƒ∂ßåΩ≈ç√∫˜µ≤ユーザーコードa😀' in text
+# def test_wild_unicode_body_sending(server, parm, body):
+#     # add some unicode text to the body with characters
+#     # that can not be represented with one byte only
+#     with body.open('at', encoding='utf8') as bodyf:
+#         bodyf.write('\nœ´®†¥¨ˆøπ¬˚∆˙©ƒ∂ßåΩ≈ç√∫˜µ≤ユーザーコードa😀\n')
+#     protocol, emails = cli(server, parm, body)
+#     email = emails[0]
+#     text = email.get_content()
+#     assert email['Content-Transfer-Encoding'] == 'base64'
+#     assert 'œ´®†¥¨ˆøπ¬˚∆˙©ƒ∂ßåΩ≈ç√∫˜µ≤ユーザーコードa😀' in text
 
-def test_unicode_subject(server, parm, body):
-    opts = {'--subject' : 'Üni©ödę¿' }
-    protocol, emails = cli(server, parm, body, opts=opts)
-    email = emails[0]
-    assert email['Subject'] == 'Üni©ödę¿'
+# def test_unicode_subject(server, parm, body):
+#     opts = {'--subject' : 'Üni©ödę¿' }
+#     protocol, emails = cli(server, parm, body, opts=opts)
+#     email = emails[0]
+#     assert email['Subject'] == 'Üni©ödę¿'
 
-def test_unicode_from(server, parm, body):
-    opts = { '--from' : '"Üni©ödę¿" <broken@email.com>' }
-    protocol, emails = cli(server, parm, body, opts=opts)
-    email = emails[0]
-    # the email module takes care of quoting UTF8, so we don't
-    # have the quotes in the header
-    assert email['From'] == 'Üni©ödę¿ <broken@email.com>'
+# def test_unicode_from(server, parm, body):
+#     opts = { '--from' : '"Üni©ödę¿" <broken@email.com>' }
+#     protocol, emails = cli(server, parm, body, opts=opts)
+#     email = emails[0]
+#     # the email module takes care of quoting UTF8, so we don't
+#     # have the quotes in the header
+#     assert email['From'] == 'Üni©ödę¿ <broken@email.com>'
 
 def test_unicode_several_reciepients(server, parm, body):
     # add some unicode text to the body

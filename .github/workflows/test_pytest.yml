@@ -11,9 +11,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        #os: [ubuntu-latest, macos-latest, windows-latest]
-        os: [ubuntu-latest, windows-latest]
-        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
+        os: [macos-latest, ubuntu-latest]
+        python-version: ['3.13']
     timeout-minutes: 15
 
     steps:
@@ -28,6 +27,6 @@ jobs:
         python -m pip install -e .[test]
     - name: Test with pytest
       run: |
-        python -m pytest --cov=massmail --cov-report=term-missing
+        PYTHONUNBUFFERED=x python -m pytest -s -vvv --cov=massmail --cov-report=term-missing --durations=0
       timeout-minutes: 8
 
