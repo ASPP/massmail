@@ -4,7 +4,7 @@ version = "0.2"
 description = "Send mass mail"
 authors = [ { name="ASPP", email ="info@aspp.school" } ]
 license = { file = "LICENSE" }
-requires-python = ">=3.6"
+requires-python = ">=3.10"
 dependencies = [ "aiosmtpd", "click>=8.2.0", "email-validator>=2.0", "rich" ]
 
 [project.optional-dependencies]
