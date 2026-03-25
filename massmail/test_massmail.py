@@ -100,6 +100,7 @@ TfvhHNbB/2KiW9Si3G4bfcyPrH60O9yCfmbLDUjRgH2UjbOIefWKcKyAz/ZA5Y0=
 # The resulting server runs at localhost:8025
 @pytest.fixture(scope="module")
 def server(tmp_path_factory):
+    print(tmp_path_factory)
     tlsdir = tmp_path_factory.mktemp('tlsdir')
     key = tlsdir / 'key'
     key.write_text(TLS_KEY)
@@ -133,6 +134,7 @@ def server(tmp_path_factory):
     # assert False
     try:
         l = server.stderr.readline()
+        print(l)
         assert b'Server is listening on' in l, f"Problem in line: {l}"
         yield server
     # print(server.stdout)
