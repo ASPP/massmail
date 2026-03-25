@@ -128,8 +128,8 @@ def server(tmp_path_factory):
                               close_fds=False,
                               env=env)
     # wait for server to startup
-    # import time
-    # time.sleep(0.2)
+    import time
+    time.sleep(2)
     # assert False
     try:
         l = server.stderr.readline()
