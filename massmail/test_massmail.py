@@ -549,7 +549,7 @@ def test_confusing_csv(server, parm, body, tmp_path):
     with fileinput.input(files=parm, inplace=True) as parmf:
         for idx, line in enumerate(parmf):
             if idx == 0:
-                print(line.replace(';', ',', count=1))
+                print(line.replace(';', ',', 1))
             else:
                 print(line)
 
