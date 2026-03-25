@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import collections
+import csv
 import email
 import mimetypes
 import pathlib
@@ -15,46 +17,45 @@ import email_validator
 
 def parse_parameter_file(parameter_file):
     name = parameter_file.name
-    pars = parameter_file.read()
-    pars = pars.splitlines()
-
-    # get keywords from first line
-    key_list = [key.strip() for key in pars[0].split(';')]
+    # sniff the CSV dialect, so that we can support different CSV formats
+    # note: the newline argument is important, or the dialect sniffing does not
+    # work properly
+    # always assume UTF8
+    reader = csv.DictReader(parameter_file.open('rt', encoding='utf8',
+                            errors='strict', newline=''), delimiter=';')
 
     # fail immediately if no EMAIL keyword is found
-    if '$EMAIL$' not in key_list:
+    if '$EMAIL$' not in reader.fieldnames:
         raise click.ClickException(f'No $EMAIL$ keyword found in {name}')
 
     # check that all keywords start and finish with a '$' character
-    for key in key_list:
+    for key in reader.fieldnames:
         if not key.startswith('$') or not key.endswith('$'):
             raise click.ClickException(f'Keyword {key=} malformed in {name}: should be $KEY$')
 
-    # gather all values
-    keys = dict([(key, []) for key in key_list])
-    for count, line in enumerate(pars[1:]):
-        # ignore empty lines
-        if len(line) == 0:
-            continue
-        values = [value.strip() for value in line.split(';')]
-        if len(values) != len(key_list):
-            raise click.ClickException(f'Line {count+2} in {name} malformed: '
-                             f'{len(values)} found instead of {len(key_list)}')
-        for i, key in enumerate(key_list):
-            keys[key].append(values[i])
+    keys = collections.defaultdict(list)
+    for count, row in enumerate(reader):
+        errstr = f'Line {count+2} in {name} malformed'
+        # verify that we don't have too many values
+        if None in row:
+            raise click.ClickException(f'{errstr}: {len(row.values())} found instead of {len(reader.fieldnames)}')
+        # verify that we are not missing values
+        if None in row.values():
+            values = list(row.values())
+            values.remove(None)
+            raise click.ClickException(f'{errstr}: {len(values)} found instead of {len(reader.fieldnames)}')
+        for key, value in row.items():
+            value_str = value.strip()
+            # validate email addresses
+            if key == '$EMAIL$':
+                validated_emails = [validate_email_address(email.strip(), errstr) for email in value_str.split(',')]
+                value_str = ','.join(validated_emails)
+            keys[key].append(value_str)
 
-    # validate email addresses
-    for idx, emails in enumerate(keys['$EMAIL$']):
-        # split into individual email addresses
-        validated = []
-        for email in emails.split(','):
-            # remove spaces
-            email = email.strip()
-            validated.append(validate_email_address(email,
-                                        errstr=f'Line {idx+2} in {name}:\n'))
-        # store the validated and normalized email addresses back into the dict
-        keys['$EMAIL$'][idx] = ','.join(validated)
-    return keys
+    # return a normal dict, and not a defaultdict, so that access to unknown keys later
+    # in the code throw the appropriate KeyError instead of returning an empty list
+    return dict(keys)
+
 
 def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, attachment):
     msgs = {}
@@ -247,7 +248,8 @@ class Email(click.ParamType):
 @click.option('-S', '--subject', required=True, help='set the Subject: header')
 @click.option('-Z', '--server', required=True, help='the SMTP server to use')
 @click.option('-P', '--parameter', 'parameter_file', required=True,
-              type=click.File(mode='rt', encoding='utf8', errors='strict'),
+              type=click.Path(exists=True, dir_okay=False, allow_dash=True, path_type=pathlib.Path),
+              #type=click.File(mode='rt', encoding='utf8', errors='strict', newline=''),
               help='set the parameter file (see above for an example)')
 @click.option('-B', '--body', 'body_file', required=True,
               type=click.File(mode='rt', encoding='utf8', errors='strict'),
@@ -296,7 +298,4 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, inreply_to,
     keys = parse_parameter_file(parameter_file)
     msgs = create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, attachment)
     send_messages(msgs, server, user, password)
-
-if __name__ == '__main__':
-    main()
 
