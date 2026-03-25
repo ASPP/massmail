@@ -193,7 +193,9 @@ def parse_smtp(server):
     # we can not just issue a blank .read() because that would would block until
     # server.stderr is closed, which only happens after the server has exited
     # so we request 1MB (1024*1024 = 2^20 bytes = 1048576) to be sure
+    print("parse begin read")
     smtp = server.stderr.read(1048576)
+    print("parse end read", smtp)
     protocol = []
     emails = []
     for line in smtp.splitlines():
