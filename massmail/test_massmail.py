@@ -320,9 +320,11 @@ def test_unicode_subject(server, parm, body):
     assert email['Subject'] == 'Üni©ödę¿'
 
 def test_unicode_from(server, parm, body):
-    opts = { '--from' : 'Üni©ödę¿ <broken@email.com>' }
+    opts = { '--from' : '"Üni©ödę¿" <broken@email.com>' }
     protocol, emails = cli(server, parm, body, opts=opts)
     email = emails[0]
+    # the email module takes care of quoting UTF8, so we don't
+    # have the quotes in the header
     assert email['From'] == 'Üni©ödę¿ <broken@email.com>'
 
 def test_unicode_several_reciepients(server, parm, body):
