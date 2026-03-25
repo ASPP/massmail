@@ -292,7 +292,8 @@ def test_empty_lines_in_parm(server, parm, body):
     protocol, emails = cli(server, parm, body)
     with parm.open('at', encoding='utf8') as parmf:
         parmf.write('\n\nJohn; Smith; j@monkeys.com\n')
-    _, emails2 = cli(server, parm, body)
+    # pass the delimiter explicitly or windows would complain here
+    _, emails2 = cli(server, parm, body, opts = {'-d':';'})
     for idx, email in enumerate(emails):
         assert emails2[idx]['To'] == email['To']
     assert emails2[-1]['To'] == 'j@monkeys.com'

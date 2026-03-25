@@ -26,7 +26,7 @@ def parse_parameter_file(parameter_file, delimiter=None):
             dialect = csv.Sniffer().sniff(parm.read())
             reader_opts = {'dialect' : dialect}
             parm.seek(0)
-        except csv.Error as exc:
+        except (csv.Error, ValueError) as exc:
             raise click.BadParameter(f'Could not automatically guess CSV format, please specify the deilimiter with -d!')
     else:
         reader_opts = {'delimiter' : delimiter}
