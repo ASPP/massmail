@@ -165,7 +165,6 @@ def parm(tmp_path):
     f = tmp_path / 'parms.csv'
     f.write_text(header+'\n'+row1)
     yield f
-    f.unlink()
 
 # return a "good" body file
 @pytest.fixture
@@ -180,7 +179,6 @@ def body(tmp_path):
     f = tmp_path / 'body.txt'
     f.write_text(text)
     yield f
-    f.unlink()
 
 def parse_smtp(server):
     # we can not just issue a blank .read() because that would would block until
