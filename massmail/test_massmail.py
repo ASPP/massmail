@@ -126,7 +126,7 @@ def server(tmp_path_factory):
                               text=False,
                               stderr=subprocess.PIPE,
                               stdout=None,
-                              bufsize=0,
+                            #   bufsize=0,
                               close_fds=False,
                               env=env)
     # wait for server to startup
