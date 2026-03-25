@@ -18,9 +18,8 @@ import email_validator
 def parse_parameter_file(parameter_file, delimiter=None):
     name = parameter_file.name
     # sniff the CSV dialect, so that we can support different CSV formats
-    # note: the newline argument is important, or the dialect sniffing does not work properly
     # always assume UTF8
-    parm = parameter_file.open('rt', encoding='utf8', errors='strict', newline='')
+    parm = parameter_file.open('rt', encoding='utf8', errors='strict')
     if delimiter is None:
         try:
             dialect = csv.Sniffer().sniff(parm.read())

@@ -535,10 +535,10 @@ def test_unknown_attachment_type(server, parm, body, tmp_path):
 def test_different_csv_dialect(parm, tmp_path):
     keys = parse_parameter_file(parm)
     # switch dialect
-    with parm.open('rt', encoding='utf8', errors='strict', newline='') as parmf:
+    with parm.open('rt', encoding='utf8', errors='strict') as parmf:
         reader = csv.DictReader(parmf, delimiter=';')
         newparm = tmp_path / 'newparm.csv'
-        with newparm.open('wt', encoding='utf8', errors='strict', newline='') as newparmf:
+        with newparm.open('wt', encoding='utf8', errors='strict') as newparmf:
             writer = csv.DictWriter(newparmf, fieldnames=reader.fieldnames, delimiter=',')
             writer.writeheader()
             [writer.writerow(row) for row in reader]
