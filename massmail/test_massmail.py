@@ -113,6 +113,7 @@ def server(tmp_path_factory):
     env = os.environ.copy()
     env['PYTHONPATH'] = ''
     env['AIOSMTPD_CONTROLLER_TIMEOUT'] = '10'
+    env['PYTHONUNBUFFERED'] = 'x'
     server = subprocess.Popen([sys.executable,
                                '-m', 'aiosmtpd',
                                '--nosetuid',
