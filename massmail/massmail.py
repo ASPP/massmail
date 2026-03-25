@@ -82,12 +82,10 @@ def parse_body(body_file, keys):
     return body_text
 
 
-
-def create_email_bodies(body_text, items, fromh, subject, cc, bcc, inreply_to, attachment):
-
+def collect_attachments(items, attachments):
     # collect attachments once and then attach them to every single message
-    attachments = {}
-    for path in attachment:
+    mime_attachments = {}
+    for path in attachments:
         # guess the MIME type based on file extension only...
         mime, encoding = mimetypes.guess_type(path, strict=False)
         # if no guess or if the type is already encoded, the MIME type is octet-stream
@@ -95,8 +93,11 @@ def create_email_bodies(body_text, items, fromh, subject, cc, bcc, inreply_to, a
             mime = 'application/octet-stream'
         maintype, subtype = mime.split('/', 1)
         data = path.read_bytes()
-        attachments[path.name] = (data, maintype, subtype)
+        mime_attachments[path.name] = (data, maintype, subtype)
 
+    return mime_attachments
+
+def create_email_bodies(body_text, items, fromh, subject, cc, bcc, inreply_to, attachments):
     for i, item in enumerate(items):
         # find keywords and substitute with values
 
@@ -157,8 +158,6 @@ def create_email_bodies(body_text, items, fromh, subject, cc, bcc, inreply_to, a
             # tease the first message
             tease(msg, len(items))
         yield msg
-
-    #return msgs
 
 
 def tease(msg, nmsgs):
@@ -273,7 +272,6 @@ class Email(click.ParamType):
 @click.option('-Z', '--server', required=True, help='the SMTP server to use')
 @click.option('-P', '--parameter', 'parameter_file', required=True,
               type=click.Path(exists=True, dir_okay=False, allow_dash=True, path_type=pathlib.Path),
-              #type=click.File(mode='rt', encoding='utf8', errors='strict', newline=''),
               help='set the parameter file (see above for an example)')
 @click.option('-B', '--body', 'body_file', required=True,
               type=click.File(mode='rt', encoding='utf8', errors='strict'),
@@ -324,8 +322,11 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, delimiter, 
     keys, items = parse_parameter_file(parameter_file, delimiter)
     body = parse_body(body_file, keys)
 
+    # verify and collect attachments
+    attachments = collect_attachments(items, attachment)
+
     # get messages generator
-    msgs = create_email_bodies(body, items, fromh, subject, cc, bcc, inreply_to, attachment)
+    msgs = create_email_bodies(body, items, fromh, subject, cc, bcc, inreply_to, attachments)
 
     # login to the server
     server_connection = server_login(server, user, password)
