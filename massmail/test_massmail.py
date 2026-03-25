@@ -115,7 +115,7 @@ def server(tmp_path_factory):
     server = subprocess.Popen([sys.executable,
                                '-m', 'aiosmtpd',
                                '--nosetuid',
-                               '--debug',
+                               '-dd',
                                '--tlscert', str(cert),
                                '--tlskey', str(key),
                                '--listen',  '127.0.0.1:8025',
@@ -130,6 +130,8 @@ def server(tmp_path_factory):
     # wait for server to startup
     assert b'Server is listening on' in server.stderr.readline()
     yield server
+    print(server.stdout)
+    print(server.stderr)
     server.terminate()
 
 @pytest.fixture(scope="module")
