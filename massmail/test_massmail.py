@@ -1,7 +1,7 @@
 import email as email_module
+import os
 import subprocess
 import sys
-import time
 
 from massmail.massmail import main as massmail
 import click.testing
@@ -105,6 +105,13 @@ def server(tmp_path_factory):
     key.write_text(TLS_KEY)
     cert = tlsdir / 'cert'
     cert.write_text(TLS_CERT)
+    # we need this so that windows does not complain when launching the subprocess
+    # whis this crazy error:
+    # Fatal Python error: _Py_HashRandomization_Init: failed to get random numbers to initialize Python
+    # it seems windows needs an env variable SYSTEMROOT and an empty PYTHONPATH...
+    env = os.environ.copy()
+    env['PYTHONPATH'] = ''
+    env['AIOSMTPD_CONTROLLER_TIMEOUT'] = '10'
     server = subprocess.Popen([sys.executable,
                                '-m', 'aiosmtpd',
                                '--nosetuid',
@@ -118,14 +125,20 @@ def server(tmp_path_factory):
                               stderr=subprocess.PIPE,
                               stdout=None,
                               bufsize=0,
-                              env={'AIOSMTPD_CONTROLLER_TIMEOUT':'10'})
+                              close_fds=False,
+                              env=env)
     # wait for server to startup
-    assert 'Server is listening on' in server.stderr.readline().decode()
+    line = server.stderr.readline()
+    print(line)
+    assert b'Server is listening on' in line
     yield server
     server.terminate()
 
 @pytest.fixture(scope="module")
 def server_notls(tmp_path_factory):
+    env = os.environ.copy()
+    env['PYTHONPATH'] = ''
+    env['AIOSMTPD_CONTROLLER_TIMEOUT'] = '10'
     server = subprocess.Popen([sys.executable,
                                '-m', 'aiosmtpd',
                                '--nosetuid',
@@ -137,9 +150,10 @@ def server_notls(tmp_path_factory):
                               stderr=subprocess.PIPE,
                               stdout=None,
                               bufsize=0,
-                              env={'AIOSMTPD_CONTROLLER_TIMEOUT':'10'})
+                              close_fds=False,
+                              env=env)
     # wait for server to startup
-    assert 'Server is listening on' in server.stderr.readline().decode()
+    assert b'Server is listening on' in server.stderr.readline()
     yield server
     server.terminate()
 
