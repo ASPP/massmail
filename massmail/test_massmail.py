@@ -115,7 +115,7 @@ def server(tmp_path_factory):
     server = subprocess.Popen([sys.executable,
                                '-m', 'aiosmtpd',
                                '--nosetuid',
-                               '-dd',
+                               '--debug',
                                '--tlscert', str(cert),
                                '--tlskey', str(key),
                                '--listen',  '127.0.0.1:8025',
