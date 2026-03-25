@@ -27,6 +27,6 @@ jobs:
         python -m pip install -e .[test]
     - name: Test with pytest
       run: |
-        python -m pytest -s -vvv --cov=massmail --cov-report=term-missing --durations=0
+        PYTHONUNBUFFERED=x python -m pytest -s -vvv --cov=massmail --cov-report=term-missing --durations=0
       timeout-minutes: 8
 
