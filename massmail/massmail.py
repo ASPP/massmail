@@ -182,7 +182,7 @@ def tease(msg, nmsgs):
         raise click.ClickException('Aborted! We did not send anything!')
 
 
-def send_messages(msgs, server, user, password, nmsgs):
+def server_login(server, user, password):
     servername = server.split(':')[0]
     try:
         server = smtplib.SMTP(server)
@@ -206,6 +206,9 @@ def send_messages(msgs, server, user, password, nmsgs):
         except Exception as err:
             raise click.ClickException(f'Can not login to {servername}: {err}')
 
+    return server
+
+def send_messages(msgs, server, nmsgs):
     progress = rich.progress.Progress()
     track = progress.add_task("[green]Sending:[/green]", total=nmsgs)
     try:
@@ -223,8 +226,7 @@ def send_messages(msgs, server, user, password, nmsgs):
             progress.update(track, advance=1)
     finally:
         progress.stop()
-
-    server.quit()
+        server.quit()
 
 def validate_inreply_to(context, param, value):
     if value is None:
@@ -322,9 +324,12 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, delimiter, 
     keys, items = parse_parameter_file(parameter_file, delimiter)
     body = parse_body(body_file, keys)
 
-    # create messages
+    # get messages generator
     msgs = create_email_bodies(body, items, fromh, subject, cc, bcc, inreply_to, attachment)
 
+    # login to the server
+    server_connection = server_login(server, user, password)
+
     # do the real work
-    send_messages(msgs, server, user, password, nmsgs=len(items))
+    send_messages(msgs, server_connection, nmsgs=len(items))
 
