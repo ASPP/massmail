@@ -1,7 +1,7 @@
 import email as email_module
+import os
 import subprocess
 import sys
-import time
 
 from massmail.massmail import main as massmail
 import click.testing
@@ -105,41 +105,53 @@ def server(tmp_path_factory):
     key.write_text(TLS_KEY)
     cert = tlsdir / 'cert'
     cert.write_text(TLS_CERT)
+    # we need this so that windows does not complain when launching the subprocess
+    # whis this crazy error:
+    # Fatal Python error: _Py_HashRandomization_Init: failed to get random numbers to initialize Python
+    # it seems windows needs an env variable SYSTEMROOT and an empty PYTHONPATH...
+    env = os.environ.copy()
+    env['PYTHONPATH'] = ''
+    env['AIOSMTPD_CONTROLLER_TIMEOUT'] = '10'
     server = subprocess.Popen([sys.executable,
                                '-m', 'aiosmtpd',
                                '--nosetuid',
                                '--debug',
                                '--tlscert', str(cert),
                                '--tlskey', str(key),
-                               '--listen',  'localhost:8025',
+                               '--listen',  '127.0.0.1:8025',
                                '--class', 'aiosmtpd.handlers.Debugging', 'stderr'],
                               stdin=None,
                               text=False,
                               stderr=subprocess.PIPE,
                               stdout=None,
                               bufsize=0,
-                              env={'AIOSMTPD_CONTROLLER_TIMEOUT':'0'})
-    # give the smtp server 100 milliseconds to startup
-    time.sleep(0.1)
+                              close_fds=False,
+                              env=env)
+    # wait for server to startup
+    assert b'Server is listening on' in server.stderr.readline()
     yield server
     server.terminate()
 
 @pytest.fixture(scope="module")
 def server_notls(tmp_path_factory):
+    env = os.environ.copy()
+    env['PYTHONPATH'] = ''
+    env['AIOSMTPD_CONTROLLER_TIMEOUT'] = '10'
     server = subprocess.Popen([sys.executable,
                                '-m', 'aiosmtpd',
                                '--nosetuid',
                                '--debug',
-                               '--listen',  'localhost:8026',
+                               '--listen',  '127.0.0.1:8026',
                                '--class', 'aiosmtpd.handlers.Debugging', 'stderr'],
                               stdin=None,
                               text=False,
                               stderr=subprocess.PIPE,
                               stdout=None,
                               bufsize=0,
-                              env={'AIOSMTPD_CONTROLLER_TIMEOUT':'0'})
-    # give the smtp server 100 milliseconds to startup
-    time.sleep(0.1)
+                              close_fds=False,
+                              env=env)
+    # wait for server to startup
+    assert b'Server is listening on' in server.stderr.readline()
     yield server
     server.terminate()
 
@@ -151,7 +163,6 @@ def parm(tmp_path):
     f = tmp_path / 'parms.csv'
     f.write_text(header+'\n'+row1)
     yield f
-    f.unlink()
 
 # return a "good" body file
 @pytest.fixture
@@ -166,7 +177,6 @@ def body(tmp_path):
     f = tmp_path / 'body.txt'
     f.write_text(text)
     yield f
-    f.unlink()
 
 def parse_smtp(server):
     # we can not just issue a blank .read() because that would would block until
@@ -204,7 +214,7 @@ def cli(server, parm, body, opts={}, opts_list=[], input='y\n', errs=False, outp
     options = {
                '--from'      : 'Blushing Gorilla <gorilla@jungle.com>',
                '--subject'   : 'Invitation to the jungle',
-               '--server'    : 'localhost:8025',
+               '--server'    : '127.0.0.1:8025',
                '--parameter' : str(parm),
                '--body'      : str(body),
                }
@@ -219,7 +229,7 @@ def cli(server, parm, body, opts={}, opts_list=[], input='y\n', errs=False, outp
     opts.extend(opts_list)
     # now we have all default options + options passed by the test
     # instantiate a click Runner
-    script = click.testing.CliRunner()
+    script = click.testing.CliRunner(catch_exceptions=False)
     result = script.invoke(massmail, opts, input=input)
     if errs:
         # we expect errors, so do not interact with the SMTP server at all
@@ -277,7 +287,7 @@ def test_regular_sending(server, parm, body):
 def test_empty_lines_in_parm(server, parm, body):
     # insert an empty line in the parm file
     protocol, emails = cli(server, parm, body)
-    with parm.open('at') as parmf:
+    with parm.open('at', encoding='utf8') as parmf:
         parmf.write('\n\nJohn; Smith; j@monkeys.com\n')
     _, emails2 = cli(server, parm, body)
     for idx, email in enumerate(emails):
@@ -290,27 +300,23 @@ def test_aborting_on_user_request(server, parm, body):
 
 def test_unicode_body_sending(server, parm, body):
     # add some unicode text to the body
-    with body.open('at') as bodyf:
-        bodyf.write('\nÜni©ödę¿\n')
+    with body.open('at', encoding='utf8' ) as bodyf:
+        bodyf.write('\nÜni©ödę\n')
     protocol, emails = cli(server, parm, body)
     email = emails[0]
-    # unicode characters force the transfer encoding to  8bit
-    assert email['Content-Transfer-Encoding'] == '8bit'
     text = email.get_content()
-    assert 'Üni©ödę¿' in text
+    assert email['Content-Transfer-Encoding'] == 'base64'
+    assert 'Üni©ödę' in text
 
 def test_wild_unicode_body_sending(server, parm, body):
-    # add some unicode text to the body
-    with body.open('at') as bodyf:
+    # add some unicode text to the body with characters
+    # that can not be represented with one byte only
+    with body.open('at', encoding='utf8') as bodyf:
         bodyf.write('\nœ´®†¥¨ˆøπ¬˚∆˙©ƒ∂ßåΩ≈ç√∫˜µ≤ユーザーコードa😀\n')
     protocol, emails = cli(server, parm, body)
     email = emails[0]
-    # because we use unicode characters that don't fit in one byte,
-    # the email will be encoded in base64 for tranfer
-    assert email['Content-Transfer-Encoding'] == 'base64'
-    # we have to trust the internal email_module machinery
-    # to perform the proper decoding
     text = email.get_content()
+    assert email['Content-Transfer-Encoding'] == 'base64'
     assert 'œ´®†¥¨ˆøπ¬˚∆˙©ƒ∂ßåΩ≈ç√∫˜µ≤ユーザーコードa😀' in text
 
 def test_unicode_subject(server, parm, body):
@@ -320,14 +326,16 @@ def test_unicode_subject(server, parm, body):
     assert email['Subject'] == 'Üni©ödę¿'
 
 def test_unicode_from(server, parm, body):
-    opts = { '--from' : 'Üni©ödę¿ <broken@email.com>' }
+    opts = { '--from' : '"Üni©ödę¿" <broken@email.com>' }
     protocol, emails = cli(server, parm, body, opts=opts)
     email = emails[0]
+    # the email module takes care of quoting UTF8, so we don't
+    # have the quotes in the header
     assert email['From'] == 'Üni©ödę¿ <broken@email.com>'
 
 def test_unicode_several_reciepients(server, parm, body):
     # add some unicode text to the body
-    with parm.open('at') as parmf:
+    with parm.open('at', encoding='utf8') as parmf:
         parmf.write('\nJohn; Smith; j@monkeys.com\n')
     protocol, emails = cli(server, parm, body)
 
@@ -343,14 +351,14 @@ def test_unicode_several_reciepients(server, parm, body):
 
 def test_unicode_parm(server, parm, body):
     # add some unicode text to the body
-    with parm.open('at') as parmf:
+    with parm.open('at', encoding='utf8') as parmf:
         parmf.write('\nÜni©ödę¿; Smith; j@monkeys.com\n')
     protocol, emails = cli(server, parm, body)
     assert 'Dear Üni©ödę¿ Smith' in emails[1].get_content()
 
 def test_multiple_recipients_in_one_row(server, parm, body):
     # add some unicode text to the body
-    with parm.open('at') as parmf:
+    with parm.open('at', encoding='utf8') as parmf:
         parmf.write('\nAnne and Mary; Joyce; a@donkeys.com, m@donkeys.com\n')
     protocol, emails = cli(server, parm, body)
     assert len(emails) == 2
@@ -383,14 +391,14 @@ def test_missing_email_in_parm(server, parm, body):
     assert 'No $EMAIL$' in cli(server, parm, body, errs=True)
 
 def test_too_many_values_in_parm(server, parm, body):
-    with parm.open('at') as parmf:
+    with parm.open('at', encoding='utf8') as parmf:
         parmf.write('\nMario;Rossi;j@monkeys.com;too much\n')
     output = cli(server, parm, body, errs=True)
     assert 'Line 3' in output
     assert '4 found instead of 3' in output
 
 def test_missing_values_in_parm(server, parm, body):
-    with parm.open('at') as parmf:
+    with parm.open('at', encoding='utf8') as parmf:
         parmf.write('\nMario;j@monkeys.com\n')
     output = cli(server, parm, body, errs=True)
     assert 'Line 3' in output
@@ -398,7 +406,7 @@ def test_missing_values_in_parm(server, parm, body):
 
 def test_unknown_key_in_body(server, parm, body):
     # add some unknown key to the body
-    with body.open('at') as bodyf:
+    with body.open('at', encoding='utf8') as bodyf:
         bodyf.write('\n$UNKNOWN$\n')
     output = cli(server, parm, body, errs=True)
     assert 'Unknown key in body' in output
@@ -406,7 +414,7 @@ def test_unknown_key_in_body(server, parm, body):
 
 def test_no_key_in_body(server, parm, body):
     # add some unknown key to the body
-    with body.open('wt') as bodyf:
+    with body.open('wt', encoding='utf8') as bodyf:
         bodyf.write('No keys here!\n')
     protocol, emails, output = cli(server, parm, body, output=True)
     assert 'WARNING: no keys found in body file' in output
@@ -422,7 +430,7 @@ def test_server_wrong_authentication(server, parm, body):
     assert 'Can not login' in cli(server, parm, body, opts=opts, errs=True)
 
 def test_server_notls(server_notls, parm, body):
-    opts = {'--server' : 'localhost:8026' }
+    opts = {'--server' : '127.0.0.1:8026' }
     assert 'Could not STARTTLS' in cli(server_notls, parm, body, opts=opts, errs=True)
 
 def test_bcc(server, parm, body):
@@ -471,14 +479,14 @@ def test_validate_from(server, parm, body):
     assert 'is not a valid email' in cli(server, parm, body, opts=opts, errs=True)
 
 def test_invalid_email_in_parm(server, parm, body):
-    with parm.open('at') as parmf:
+    with parm.open('at', encoding='utf8') as parmf:
         parmf.write('\nMario;Rossi;j@monkeys\n')
     output = cli(server, parm, body, errs=True)
     assert 'is not a valid email' in output
     assert 'Line 3' in output
 
 def test_rich_email_address_in_parm(server, parm, body):
-    with parm.open('at') as parmf:
+    with parm.open('at', encoding='utf8') as parmf:
         parmf.write('\nMario;Rossi;Mario Rossi <j@monkeys.org>\n')
     protocol, emails = cli(server, parm, body)
     assert 'recip: j@monkeys.org' in protocol
