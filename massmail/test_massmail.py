@@ -111,7 +111,7 @@ def server(tmp_path_factory):
                                '--debug',
                                '--tlscert', str(cert),
                                '--tlskey', str(key),
-                               '--listen',  'localhost:8025',
+                               '--listen',  '127.0.0.1:8025',
                                '--class', 'aiosmtpd.handlers.Debugging', 'stderr'],
                               stdin=None,
                               text=False,
@@ -130,7 +130,7 @@ def server_notls(tmp_path_factory):
                                '-m', 'aiosmtpd',
                                '--nosetuid',
                                '--debug',
-                               '--listen',  'localhost:8026',
+                               '--listen',  '127.0.0.1:8026',
                                '--class', 'aiosmtpd.handlers.Debugging', 'stderr'],
                               stdin=None,
                               text=False,
@@ -204,7 +204,7 @@ def cli(server, parm, body, opts={}, opts_list=[], input='y\n', errs=False, outp
     options = {
                '--from'      : 'Blushing Gorilla <gorilla@jungle.com>',
                '--subject'   : 'Invitation to the jungle',
-               '--server'    : 'localhost:8025',
+               '--server'    : '127.0.0.1:8025',
                '--parameter' : str(parm),
                '--body'      : str(body),
                }
@@ -424,7 +424,7 @@ def test_server_wrong_authentication(server, parm, body):
     assert 'Can not login' in cli(server, parm, body, opts=opts, errs=True)
 
 def test_server_notls(server_notls, parm, body):
-    opts = {'--server' : 'localhost:8026' }
+    opts = {'--server' : '127.0.0.1:8026' }
     assert 'Could not STARTTLS' in cli(server_notls, parm, body, opts=opts, errs=True)
 
 def test_bcc(server, parm, body):
