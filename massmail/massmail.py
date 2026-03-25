@@ -15,6 +15,11 @@ import click
 import email_validator
 
 
+KEYREGX = re.compile(r'(\$\w+\$)+')
+ATTACHMENT_TYPE = click.Path(exists=True, dir_okay=False, readable=True, path_type=pathlib.Path)
+FILETYPE = click.Path(exists=True, dir_okay=False, allow_dash=True, path_type=pathlib.Path)
+
+
 def parse_parameter_file(parameter_file, delimiter=None):
     name = parameter_file.name
     # sniff the CSV dialect, so that we can support different CSV formats
@@ -40,7 +45,7 @@ def parse_parameter_file(parameter_file, delimiter=None):
         if not key.startswith('$') or not key.endswith('$'):
             raise click.ClickException(f'Keyword {key=} malformed in {name}: should be $KEY$')
 
-    keys = collections.defaultdict(list)
+    items = []
     for count, row in enumerate(reader):
         errstr = f'Line {count+2} in {name} malformed'
         # verify that we don't have too many values
@@ -51,36 +56,58 @@ def parse_parameter_file(parameter_file, delimiter=None):
             values = list(row.values())
             values.remove(None)
             raise click.ClickException(f'{errstr}: {len(values)} found instead of {len(reader.fieldnames)}')
+        item = {}
         for key, value in row.items():
             value_str = value.strip()
             # validate email addresses
             if key == '$EMAIL$':
                 validated_emails = [validate_email_address(email.strip(), errstr) for email in value_str.split(',')]
                 value_str = ','.join(validated_emails)
-            keys[key].append(value_str)
+            elif key == '$ATTACHMENT$':
+                attachments = []
+                # verify attachments
+                for attachment in value_str.split(','):
+                    # fails here if it does not exist
+                    attachments.append(ATTACHMENT_TYPE(attachment))
+                value_str = attachments
+            item[key] = value_str
+        items.append(item)
 
-    # return a normal dict, and not a defaultdict, so that access to unknown keys later
-    # in the code throw the appropriate KeyError instead of returning an empty list
-    return dict(keys)
+    return reader.fieldnames, items
 
 
-def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, attachment):
-    msgs = {}
-    body_text = body_file.read()
-    warned_once = False
-    # collect attachments once and then attach them to every single message
-    attachments = {}
-    for path in attachment:
-        # guess the MIME type based on file extension only...
-        mime, encoding = mimetypes.guess_type(path, strict=False)
-        # if no guess or if the type is already encoded, the MIME type is octet-stream
-        if mime is None or encoding is not None:
-            mime = 'application/octet-stream'
-        maintype, subtype = mime.split('/', 1)
-        data = path.read_bytes()
-        attachments[path.name] = (data, maintype, subtype)
+def parse_body(body_file, keys):
+    # expected keys from the parameter file
+    parm_keys = set(keys)
+    # keys found in the body
+    body_text = body_file.read_text(encoding='utf8', errors='strict')
+    body_keys = set(KEYREGX.findall(body_text))
 
-    for i, emails in enumerate(keys['$EMAIL$']):
+    if len(body_keys) == 0:
+        rprint(f'[bold][red]WARNING:[/red] no keys found in body file {body_file.name}[/bold]')
+    # check that there are no unkown keys in the body
+    if diff := (body_keys - parm_keys):
+        raise click.ClickException(f'Unknown key(s) in body file {body_file.name}: {diff}')
+
+    return body_text
+
+
+def format_attachment(path):
+    # guess the MIME type based on file extension only...
+    mime, encoding = mimetypes.guess_type(path, strict=False)
+    # if no guess or if the type is already encoded, the MIME type is octet-stream
+    if mime is None or encoding is not None:
+        mime = 'application/octet-stream'
+    maintype, subtype = mime.split('/', 1)
+    data = path.read_bytes()
+    return data, maintype, subtype
+
+def collect_attachments(attachments):
+    # collect global attachments once and then attach them to every single message
+    return {path.name : format_attachment(path) for path in attachments}
+
+def create_email_bodies(body_text, items, fromh, subject, cc, bcc, inreply_to, attachments):
+    for i, item in enumerate(items):
         # find keywords and substitute with values
 
         # The following line does this:
@@ -108,16 +135,7 @@ def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, at
         #   into the body_text in place of the key
         # - at the next iteration of i, we are going to select a different line from
         #   the parameter file, and generate a new email with different substitutions
-        try:
-            body = re.sub(r'\$\w+\$', lambda m: keys[m.group(0)][i], body_text)
-        except KeyError as err:
-            # an unknown key was detected
-            raise click.ClickException(f'Unknown key in body file {body_file.name}: {err}')
-        # warn if no keys were found
-        if body == body_text and not warned_once:
-            rprint(f'[bold][red]WARNING:[/red] no keys found in body file {body_file.name}[/bold]')
-            warned_once = True
-
+        body = KEYREGX.sub(lambda m: item[m.group(0)], body_text)
         msg = email.message.EmailMessage()
         try:
             # check if the body is pure ASCII
@@ -129,7 +147,7 @@ def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, at
             # like for example:
             # https://github.com/python/cpython/issues/105285
             msg.set_content(body, charset='utf-8', cte='base64')
-        msg['To'] = emails
+        msg['To'] = item['$EMAIL$']
         msg['From'] = fromh
         msg['Subject'] = subject
         if inreply_to:
@@ -145,14 +163,18 @@ def create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, at
         # add attachments
         for name, (data, mtyp, styp) in attachments.items():
             msg.add_attachment(data, filename=name, maintype=mtyp, subtype=styp)
-        msgs[emails] = msg
+        # now add attachments that were specified in the parm file
+        if '$ATTACHMENT$' in item:
+            for path in item['$ATTACHMENT$']:
+                data, mtyp, styp = format_attachment(path)
+                msg.add_attachment(data, filename=path.name, maintype=mtyp, subtype=styp)
+        if i == 0:
+            # tease the first message
+            tease(msg, len(items))
+        yield msg
 
-    return msgs
 
-def send_messages(msgs, server, user, password):
-    # print one example email for confirmation
-    ex_addr = list(msgs.keys())[0]
-    msg = msgs[ex_addr]
+def tease(msg, nmsgs):
     panel = []
     for hdr, value in msg.items():
         if hdr in ('From', 'Subject', 'Cc', 'Bcc', 'In-Reply-To'):
@@ -166,15 +188,14 @@ def send_messages(msgs, server, user, password):
     body = msg.get_body().get_content()
     panel.append(f'\n{body}')
     rprint(rich.panel.Panel.fit('\n'.join(panel)))
-
     # ask for confirmation before really sending stuff
-    rprint(f'[bold]About to send {len(msgs)} email messages like the one above…[/bold]')
+    rprint(f'[bold]About to send {nmsgs} email messages like the one above…[/bold]')
     if not rich.prompt.Confirm.ask(f'[bold]Send?[/bold]'):
         #if not click.confirm('Send the emails above?', default=None):
         raise click.ClickException('Aborted! We did not send anything!')
 
-    print()
 
+def server_login(server, user, password):
     servername = server.split(':')[0]
     try:
         server = smtplib.SMTP(server)
@@ -198,19 +219,27 @@ def send_messages(msgs, server, user, password):
         except Exception as err:
             raise click.ClickException(f'Can not login to {servername}: {err}')
 
-    print()
+    return server
 
-    for emailaddr in rich.progress.track(msgs, description="[green]Sending:[/green]"):
-        rprint(f'Sending to: [bold]{emailaddr}[/bold]')
-        try:
-            out = server.send_message(msgs[emailaddr])
-        except Exception as err:
-            raise click.ClickException(f'Can not send email: {err}')
+def send_messages(msgs, server, nmsgs):
+    progress = rich.progress.Progress()
+    track = progress.add_task("[green]Sending:[/green]", total=nmsgs)
+    try:
+        for idx, msg in enumerate(msgs):
+            if idx == 0:
+                progress.start()
+            rprint(f"Sending to: [bold]{msg['To']}[/bold]")
+            try:
+                out = server.send_message(msg)
+            except Exception as err:
+                raise click.ClickException(f'Can not send email: {err}')
 
-        if len(out) != 0:
-            raise click.ClickException(f'Can not send email: {err}')
-
-    server.quit()
+            if len(out) != 0:
+                raise click.ClickException(f'Can not send email: {err}')
+            progress.update(track, advance=1)
+    finally:
+        progress.stop()
+        server.quit()
 
 def validate_inreply_to(context, param, value):
     if value is None:
@@ -255,12 +284,9 @@ class Email(click.ParamType):
 @click.option('-F', '--from', 'fromh', required=True, type=Email(), help='set the From: header')
 @click.option('-S', '--subject', required=True, help='set the Subject: header')
 @click.option('-Z', '--server', required=True, help='the SMTP server to use')
-@click.option('-P', '--parameter', 'parameter_file', required=True,
-              type=click.Path(exists=True, dir_okay=False, allow_dash=True, path_type=pathlib.Path),
-              #type=click.File(mode='rt', encoding='utf8', errors='strict', newline=''),
+@click.option('-P', '--parameter', 'parameter_file', required=True, type=FILETYPE,
               help='set the parameter file (see above for an example)')
-@click.option('-B', '--body', 'body_file', required=True,
-              type=click.File(mode='rt', encoding='utf8', errors='strict'),
+@click.option('-B', '--body', 'body_file', required=True, type=FILETYPE,
               help='set the email body file (see above for an example)')
 
 ### OPTIONALS ###
@@ -272,8 +298,7 @@ class Email(click.ParamType):
 @click.option('-u', '--user', help='SMTP user name. If not set, use anonymous SMTP connection')
 @click.option('-p', '--password', help='SMTP password. If not set you will be prompted for one')
 @click.option('-a', '--attachment', help='add attachment [repeat for multiple attachments]',
-              multiple=True, type=click.Path(exists=True, dir_okay=False,
-                                             readable=True, path_type=pathlib.Path))
+              multiple=True, type=ATTACHMENT_TYPE)
 
 ### MAIN SCRIPT ###
 def main(fromh, subject, server, parameter_file, body_file, bcc, cc, delimiter, inreply_to,
@@ -302,9 +327,22 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, delimiter, 
 
     Notes:
 
-      Values from the parameter file (parm.csv) are inserted in the body text (body.txt). The keyword $EMAIL$ must always be present in the parameter files and contains a comma separated list of email addresses. Keep in mind shell escaping when setting headers with white spaces or special characters. Both files must be UTF8 encoded!
+      - Values from the parameter file (parm.csv) are inserted in the body text (body.txt). The keyword $EMAIL$ must always be present in the parameter files and contains a comma separated list of email addresses. Keep in mind shell escaping when setting headers with white spaces or special characters. Both files must be UTF8 encoded!
+      - Attachments can be also inserted using the key $ATTACHMENT$ in the parameter file (mutiple attachments must be comma-separated)
     """
-    keys = parse_parameter_file(parameter_file, delimiter)
-    msgs = create_email_bodies(body_file, keys, fromh, subject, cc, bcc, inreply_to, attachment)
-    send_messages(msgs, server, user, password)
+    # collect parameters and body
+    keys, items = parse_parameter_file(parameter_file, delimiter)
+    body = parse_body(body_file, keys)
+
+    # verify and collect attachments
+    attachments = collect_attachments(attachment)
+
+    # get messages generator
+    msgs = create_email_bodies(body, items, fromh, subject, cc, bcc, inreply_to, attachments)
+
+    # login to the server
+    server_connection = server_login(server, user, password)
+
+    # do the real work
+    send_messages(msgs, server_connection, nmsgs=len(items))
 
