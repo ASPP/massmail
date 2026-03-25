@@ -118,9 +118,9 @@ def server(tmp_path_factory):
                               stderr=subprocess.PIPE,
                               stdout=None,
                               bufsize=0,
-                              env={'AIOSMTPD_CONTROLLER_TIMEOUT':'0'})
-    # give the smtp server 100 milliseconds to startup
-    time.sleep(0.1)
+                              env={'AIOSMTPD_CONTROLLER_TIMEOUT':'10'})
+    # wait for server to startup
+    assert 'Server is listening on' in server.stderr.readline().decode()
     yield server
     server.terminate()
 
@@ -137,9 +137,9 @@ def server_notls(tmp_path_factory):
                               stderr=subprocess.PIPE,
                               stdout=None,
                               bufsize=0,
-                              env={'AIOSMTPD_CONTROLLER_TIMEOUT':'0'})
-    # give the smtp server 100 milliseconds to startup
-    time.sleep(0.1)
+                              env={'AIOSMTPD_CONTROLLER_TIMEOUT':'10'})
+    # wait for server to startup
+    assert 'Server is listening on' in server.stderr.readline().decode()
     yield server
     server.terminate()
 
