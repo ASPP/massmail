@@ -647,8 +647,21 @@ def test_confusing_csv(server, parm, body, tmp_path):
     output = cli(server, parm, body, errs=True)
     assert 'Could not automatically guess CSV format' in output
 
-def test_server_problems(server):
+def test_server_problems_client_side(server):
     lserver = server_login('localhost:8025', None, None)
-    msgs = [{'To' : 'thing'}]
+    msg = {'To' : 'thing'}
     with pytest.raises(click.ClickException, match='Can not send email'):
-        send_messages(msgs, lserver, 1)
+        # this fails because the msg is not a valid thing that smtplib understands
+        send_messages([msg], lserver, 1)
+
+def test_server_problems_server_side(server):
+    # create a proper message this time
+    msg = email_module.message.EmailMessage()
+    msg.set_content('test')
+    msg['From'] = 'test@test.com'
+    lserver = server_login('localhost:8025', None, None)
+    with pytest.raises(click.ClickException, match='Can not send email'):
+        # this fails bebause our message does not have any valid recipients
+        # the smtp server returns error 421
+        send_messages([msg], lserver, 1)
+
