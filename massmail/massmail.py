@@ -106,7 +106,8 @@ def collect_attachments(attachments):
     # collect global attachments once and then attach them to every single message
     return {path.name : format_attachment(path) for path in attachments}
 
-def create_email_bodies(body_text, items, fromh, subject, cc, bcc, inreply_to, attachments):
+def create_email_bodies(body_text, items, fromh, subject, cc, bcc, inreply_to, attachments, flip_bcc):
+    to_header = 'Bcc' if flip_bcc else 'To'
     for i, item in enumerate(items):
         # find keywords and substitute with values
 
@@ -147,7 +148,7 @@ def create_email_bodies(body_text, items, fromh, subject, cc, bcc, inreply_to, a
             # like for example:
             # https://github.com/python/cpython/issues/105285
             msg.set_content(body, charset='utf-8', cte='base64')
-        msg['To'] = item['$EMAIL$']
+        msg[to_header] = item['$EMAIL$']
         msg['From'] = fromh
         msg['Subject'] = subject
         if inreply_to:
@@ -155,7 +156,11 @@ def create_email_bodies(body_text, items, fromh, subject, cc, bcc, inreply_to, a
         if cc:
             msg['Cc'] = cc
         if bcc:
-            msg['Bcc'] = bcc
+            if 'Bcc' in msg:
+                new_bcc = ','.join((msg['Bcc'], bcc))
+                msg.replace_header('Bcc', new_bcc)
+            else:
+                msg['Bcc'] = bcc
         # add the required date header
         msg['Date'] = email.utils.localtime()
         # add a unique message-id
@@ -292,6 +297,8 @@ class Email(click.ParamType):
 ### OPTIONALS ###
 @click.option('-b', '--bcc', type=Email(), help='set the Bcc: header')
 @click.option('-c', '--cc', type=Email(), help='set the Cc: header')
+@click.option('-f', '--flip-bcc', is_flag=True, default=False,
+              help='send messages in Bcc without setting the To header')
 @click.option('-d', '--delimiter', type=str, default=None, help='set the delimiter for the CSV file')
 @click.option('-r', '--inreply-to', callback=validate_inreply_to, metavar="<ID>",
               help='set the In-Reply-to: header. Set it to a Message-ID.')
@@ -301,11 +308,14 @@ class Email(click.ParamType):
               multiple=True, type=ATTACHMENT_TYPE)
 
 ### MAIN SCRIPT ###
-def main(fromh, subject, server, parameter_file, body_file, bcc, cc, delimiter, inreply_to,
+def main(fromh, subject, server, parameter_file, body_file, bcc, cc, flip_bcc, delimiter, inreply_to,
          user, password, attachment):
     """Send mass mail
 
+    Values from the parameter file (parm.csv) are inserted in the body text (body.txt). The keyword $EMAIL$ must always be present in the parameter files and contains a comma separated list of email addresses. Keep in mind shell escaping when setting headers with white spaces or special characters. Both files must be UTF8 encoded!
+
     Example:
+
 
      \b
      massmail --from "Blushing Gorilla <gorilla@jungle.com>" --subject "Invitation to the jungle" --server mail.example.com:587 --user user@example.com -P parm.csv -B body.txt
@@ -327,8 +337,7 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, delimiter, 
 
     Notes:
 
-      - Values from the parameter file (parm.csv) are inserted in the body text (body.txt). The keyword $EMAIL$ must always be present in the parameter files and contains a comma separated list of email addresses. Keep in mind shell escaping when setting headers with white spaces or special characters. Both files must be UTF8 encoded!
-      - Attachments can be also inserted using the key $ATTACHMENT$ in the parameter file (mutiple attachments must be comma-separated)
+    Attachments can be also inserted using the key $ATTACHMENT$ in the parameter file (mutiple attachments must be comma-separated)
     """
     # collect parameters and body
     keys, items = parse_parameter_file(parameter_file, delimiter)
@@ -338,7 +347,7 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, delimiter, 
     attachments = collect_attachments(attachment)
 
     # get messages generator
-    msgs = create_email_bodies(body, items, fromh, subject, cc, bcc, inreply_to, attachments)
+    msgs = create_email_bodies(body, items, fromh, subject, cc, bcc, inreply_to, attachments, flip_bcc)
 
     # login to the server
     server_connection = server_login(server, user, password)
