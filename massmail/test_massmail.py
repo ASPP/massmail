@@ -436,6 +436,10 @@ def test_server_wrong_authentication(server, parm, body):
     opts = {'--user' : 'noone', '--password' : 'nopass' }
     assert 'Can not login' in cli(server, parm, body, opts=opts, errs=True)
 
+def test_password_prompt(server, parm, body):
+    opts = {'--user' : 'noone'}
+    assert 'Can not login' in cli(server, parm, body, opts=opts, input='wrong\n', errs=True)
+
 def test_server_notls(server_notls, parm, body):
     opts = {'--server' : '127.0.0.1:8026' }
     assert 'Could not STARTTLS' in cli(server_notls, parm, body, opts=opts, errs=True)
