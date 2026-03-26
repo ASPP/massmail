@@ -237,7 +237,8 @@ def send_messages(msgs, server, nmsgs):
             try:
                 out = server.send_message(msg)
             except Exception as err:
-                raise click.ClickException(f'Can not send email: {err}')
+                text = f'{type(err).__name__} {err}'
+                raise click.ClickException(f'Can not send email: {text}')
 
             if len(out) != 0:
                 raise click.ClickException(f'Can not send email: {err}')
