@@ -196,7 +196,7 @@ def tease(msg, nmsgs):
     # ask for confirmation before really sending stuff
     rprint(f'[bold]About to send {nmsgs} email messages like the one above…[/bold]')
     if not rich.prompt.Confirm.ask(f'[bold]Send?[/bold]'):
-        #if not click.confirm('Send the emails above?', default=None):
+        # #if not click.confirm('Send the emails above?', default=None):
         raise click.ClickException('Aborted! We did not send anything!')
 
 
@@ -214,12 +214,6 @@ def server_login(server, user, password):
 
     if user is not None:
         try:
-            # get password if needed
-            if password is None:
-                password = rich.prompt.Prompt.ask(f'Enter password for '
-                                                  f'[bold]{user}[/bold] '
-                                                  f'on [bold]{servername}[/bold]',
-                                                  password=True)
             server.login(user, password)
         except Exception as err:
             raise click.ClickException(f'Can not login to {servername}: {err}')
@@ -355,6 +349,9 @@ def main(fromh, subject, server, parameter_file, body_file, bcc, cc, flip_bcc, d
     msgs = create_email_bodies(body, items, fromh, subject, cc, bcc, inreply_to, attachments, flip_bcc)
 
     # login to the server
+    if user and not password:
+        prompt = 'Enter password for ' + click.style(f'{user}', bold=True) + ' on ' + click.style(f'{server.split(":")[0]}', bold=True)
+        password = click.prompt(prompt, hide_input=True)
     server_connection = server_login(server, user, password)
 
     # do the real work
