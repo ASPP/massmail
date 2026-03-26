@@ -6,7 +6,8 @@ import subprocess
 import sys
 
 from massmail.massmail import main as massmail
-from massmail.massmail import parse_parameter_file
+from massmail.massmail import parse_parameter_file, send_messages, server_login
+import click
 import click.testing
 import pytest
 
@@ -645,3 +646,9 @@ def test_confusing_csv(server, parm, body, tmp_path):
 
     output = cli(server, parm, body, errs=True)
     assert 'Could not automatically guess CSV format' in output
+
+def test_server_problems(server):
+    lserver = server_login('localhost:8025', None, None)
+    msgs = [{'To' : 'thing'}]
+    with pytest.raises(click.ClickException, match='Can not send email'):
+        send_messages(msgs, lserver, 1)
