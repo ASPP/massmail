@@ -4,6 +4,7 @@ import fileinput
 import os
 import subprocess
 import sys
+import types
 
 from massmail.massmail import main as massmail
 from massmail.massmail import parse_parameter_file, send_messages, server_login
@@ -665,3 +666,27 @@ def test_server_problems_server_side(server):
         # the smtp server returns error 421
         send_messages([msg], lserver, 1)
 
+def test_non_fatal_server_problems(server, capsys):
+    # the last thing we have to test is when the server returns a non-fatal
+    # error, for example if we have a list of two recipients and one of them
+    # gets rejected because it is unknown to the SMTP server
+    # It is hard to setup a test SMTP server that does this, so instead we
+    # monkey patch the server here so that it returns what we want
+    lserver = server_login('localhost:8025', None, None)
+    old_send_message = lserver.send_message
+    def broken_send_message(self, msg):
+        return {'broken@test.com' : (550, "User unknown")}
+    lserver.send_message = types.MethodType(broken_send_message, lserver)
+    # create a valid message this time
+    msg = email_module.message.EmailMessage()
+    msg.set_content('test')
+    msg['From'] = 'test@test.com'
+    msg['To'] = 'test@test.com'
+    send_messages([msg], lserver, 1)
+    # get captured stdout using the capsys pytest fixture
+    stdout = capsys.readouterr().out
+    assert 'Problems sending to' in stdout
+    assert "User unknown" in stdout
+    assert '550' in stdout
+    # repair the server (not needed, but who knows?)
+    lserver.send_message = old_send_message

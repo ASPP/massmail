@@ -240,8 +240,12 @@ def send_messages(msgs, server, nmsgs):
                 text = f'{type(err).__name__} {err}'
                 raise click.ClickException(f'Can not send email: {text}')
 
+            # out is a dictionary containing non-fatal SMTP errors (for example 550
+            # if one of the recipients is unknown to the server)
+            # we don't want to bail here, because other messages could still be fine
             if len(out) != 0:
-                raise click.ClickException(f'Can not send email: {err}')
+                rprint(f'[bold][red]WARNING:[/red][/bold] Problems sending to [bold]{msg["To"]}[/bold]'
+                       f' (ERROR: {out})')
             progress.update(track, advance=1)
     finally:
         progress.stop()
