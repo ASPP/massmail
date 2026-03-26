@@ -224,7 +224,6 @@ def cli(server, parm, body, opts={}, opts_list=[], input='y\n', errs=False, outp
                '--body'      : str(body),
                }
     # options can be passed by a test as a dictionary or as a list
-    # as a dictionary
     options.update(opts)
     opts = []
     for option, value in options.items():
@@ -449,6 +448,28 @@ def test_bcc(server, parm, body):
     assert 'recip: x@monkeys.com' in protocol
 
     assert emails[0]['To'] == 'donkeys@jungle.com'
+    assert 'Bcc' not in emails[0]
+
+def test_bcc_cli(server, parm, body):
+    opts = ['--flip-bcc']
+    protocol, emails = cli(server, parm, body, opts_list=opts)
+
+    assert len(emails) == 1
+    assert 'sender: gorilla@jungle.com' in protocol
+    assert 'recip: donkeys@jungle.com' in protocol
+    assert 'To' not in emails[0]
+    assert 'Bcc' not in emails[0]
+
+def test_bcc_combined(server, parm, body):
+    opts_list = ['--flip-bcc']
+    opts = {'--bcc' : 'x@monkeys.com'}
+    protocol, emails = cli(server, parm, body, opts=opts, opts_list=opts_list)
+
+    assert len(emails) == 1
+    assert 'sender: gorilla@jungle.com' in protocol
+    assert 'recip: donkeys@jungle.com' in protocol
+    assert 'recip: x@monkeys.com' in protocol
+    assert 'To' not in emails[0]
     assert 'Bcc' not in emails[0]
 
 def test_cc(server, parm, body):
